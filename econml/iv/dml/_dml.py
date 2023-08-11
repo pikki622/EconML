@@ -130,15 +130,14 @@ class _OrthoIVModelFinal:
             self._featurizer = self._original_featurizer
 
     def _combine(self, X, T, fitting=True):
-        if X is not None:
-            if self._featurizer is not None:
-                F = self._featurizer.fit_transform(X) if fitting else self._featurizer.transform(X)
-            else:
-                F = X
-        else:
+        if X is None:
             if not self._fit_cate_intercept:
                 raise AttributeError("Cannot have X=None and also not allow for a CATE intercept!")
             F = np.ones((T.shape[0], 1))
+        elif self._featurizer is not None:
+            F = self._featurizer.fit_transform(X) if fitting else self._featurizer.transform(X)
+        else:
+            F = X
         return cross_product(F, T)
 
     def fit(self, Y, T, X=None, W=None, Z=None, nuisances=None,
@@ -1335,45 +1334,43 @@ class DMLIV(_BaseDMLIV):
 
         # coefficient
         try:
-            if self.coef_.size == 0:  # X is None
+            if self.coef_.size == 0:
                 raise AttributeError("X is None, please call intercept_inference to learn the constant!")
+            coef_array = np.round(_reshape_array(self.coef_, "coefficient"), decimals)
+            coef_headers = ["point_estimate"]
+            if d_t > 1 and d_y > 1:
+                index = list(product(feature_names, output_names, treatment_names))
+            elif d_t > 1:
+                index = list(product(feature_names, treatment_names))
+            elif d_y > 1:
+                index = list(product(feature_names, output_names))
             else:
-                coef_array = np.round(_reshape_array(self.coef_, "coefficient"), decimals)
-                coef_headers = ["point_estimate"]
-                if d_t > 1 and d_y > 1:
-                    index = list(product(feature_names, output_names, treatment_names))
-                elif d_t > 1:
-                    index = list(product(feature_names, treatment_names))
-                elif d_y > 1:
-                    index = list(product(feature_names, output_names))
-                else:
-                    index = list(product(feature_names))
-                coef_stubs = ["|".join(ind_value) for ind_value in index]
-                coef_title = 'Coefficient Results'
-                smry.add_table(coef_array, coef_headers, coef_stubs, coef_title)
+                index = list(product(feature_names))
+            coef_stubs = ["|".join(ind_value) for ind_value in index]
+            coef_title = 'Coefficient Results'
+            smry.add_table(coef_array, coef_headers, coef_stubs, coef_title)
         except Exception as e:
-            print("Coefficient Results: ", str(e))
+            print("Coefficient Results: ", e)
 
         # intercept
         try:
             if not self.fit_cate_intercept:
                 raise AttributeError("No intercept was fitted!")
+            intercept_array = np.round(_reshape_array(self.intercept_, "intercept"), decimals)
+            intercept_headers = ["point_estimate"]
+            if d_t > 1 and d_y > 1:
+                index = list(product(["cate_intercept"], output_names, treatment_names))
+            elif d_t > 1:
+                index = list(product(["cate_intercept"], treatment_names))
+            elif d_y > 1:
+                index = list(product(["cate_intercept"], output_names))
             else:
-                intercept_array = np.round(_reshape_array(self.intercept_, "intercept"), decimals)
-                intercept_headers = ["point_estimate"]
-                if d_t > 1 and d_y > 1:
-                    index = list(product(["cate_intercept"], output_names, treatment_names))
-                elif d_t > 1:
-                    index = list(product(["cate_intercept"], treatment_names))
-                elif d_y > 1:
-                    index = list(product(["cate_intercept"], output_names))
-                else:
-                    index = list(product(["cate_intercept"]))
-                intercept_stubs = ["|".join(ind_value) for ind_value in index]
-                intercept_title = 'CATE Intercept Results'
-                smry.add_table(intercept_array, intercept_headers, intercept_stubs, intercept_title)
+                index = list(product(["cate_intercept"]))
+            intercept_stubs = ["|".join(ind_value) for ind_value in index]
+            intercept_title = 'CATE Intercept Results'
+            smry.add_table(intercept_array, intercept_headers, intercept_stubs, intercept_title)
         except Exception as e:
-            print("CATE Intercept Results: ", str(e))
+            print("CATE Intercept Results: ", e)
         if len(smry.tables) > 0:
             return smry
 

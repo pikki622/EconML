@@ -325,27 +325,20 @@ class TestOrthoForest(unittest.TestCase):
             TestOrthoForest.x_test
         )
         # Compute treatment effect residuals
-        if treatment_type == 'continuous':
+        if treatment_type == 'continuous' or treatment_type != 'discrete':
             te_res = np.abs(expected_te - te_hat)
-        elif treatment_type == 'discrete':
-            te_res = np.abs(expected_te - te_hat[:, 0])
         else:
-            # Multiple treatments
-            te_res = np.abs(expected_te - te_hat)
+            te_res = np.abs(expected_te - te_hat[:, 0])
         # Allow at most 10% test points to be outside of the tolerance interval
         self.assertLessEqual(np.mean(te_res > tol), 0.2)
 
     def _test_ci(self, learner_instance, expected_te, tol, treatment_type='continuous'):
 
-        for te_lower, te_upper in\
-            [learner_instance.const_marginal_effect_interval(TestOrthoForest.x_test),
+        for te_lower, te_upper in [learner_instance.const_marginal_effect_interval(TestOrthoForest.x_test),
              learner_instance.const_marginal_effect_inference(TestOrthoForest.x_test).conf_int()]:
 
             # Compute treatment effect residuals
-            if treatment_type == 'continuous':
-                delta_ci_upper = te_upper - expected_te
-                delta_ci_lower = expected_te - te_lower
-            elif treatment_type == 'discrete':
+            if treatment_type == 'discrete':
                 delta_ci_upper = te_upper[:, 0] - expected_te
                 delta_ci_lower = expected_te - te_lower[:, 0]
             else:

@@ -52,35 +52,33 @@ def _add_normalize(to_wrap):
     """
     # if we're decorating a class, just update the __init__ method,
     # so that the result is still a class instead of a wrapper method
-    if isinstance(to_wrap, type):
-        import sklearn
-        from packaging import version
-
-        if version.parse(sklearn.__version__) >= version.parse("1.0"):
-            # normalize was deprecated or removed; don't need to do anything
-            return to_wrap
-
-        else:
-            from inspect import Parameter, signature
-            from functools import wraps
-
-            old_init = to_wrap.__init__
-
-            @wraps(old_init)
-            def new_init(self, *args, normalize=False, **kwargs):
-                if normalize is not False:
-                    warnings.warn("normalize is deprecated and will be ignored", stacklevel=2)
-                return old_init(self, *args, **kwargs)
-
-            sig = signature(old_init)
-            sig = sig.replace(parameters=[*sig.parameters.values(),
-                                          Parameter("normalize", kind=Parameter.KEYWORD_ONLY, default=False)])
-
-            new_init.__signature__ = sig
-            to_wrap.__init__ = new_init
-            return to_wrap
-    else:
+    if not isinstance(to_wrap, type):
         raise ValueError("This decorator was applied to a method, but is intended to be applied only to types.")
+    import sklearn
+    from packaging import version
+
+    if version.parse(sklearn.__version__) >= version.parse("1.0"):
+        # normalize was deprecated or removed; don't need to do anything
+        return to_wrap
+
+    from inspect import Parameter, signature
+    from functools import wraps
+
+    old_init = to_wrap.__init__
+
+    @wraps(old_init)
+    def new_init(self, *args, normalize=False, **kwargs):
+        if normalize is not False:
+            warnings.warn("normalize is deprecated and will be ignored", stacklevel=2)
+        return old_init(self, *args, **kwargs)
+
+    sig = signature(old_init)
+    sig = sig.replace(parameters=[*sig.parameters.values(),
+                                  Parameter("normalize", kind=Parameter.KEYWORD_ONLY, default=False)])
+
+    new_init.__signature__ = sig
+    to_wrap.__init__ = new_init
+    return to_wrap
 
 
 def _weighted_check_cv(cv=5, y=None, classifier=False, random_state=None):
@@ -841,8 +839,7 @@ class DebiasedLasso(WeightedLasso):
         var_pred = np.sum(np.matmul(X, self._coef_variance) * X, axis=1)
         if self.fit_intercept:
             var_pred += self._mean_error_variance
-        pred_stderr = np.sqrt(var_pred)
-        return pred_stderr
+        return np.sqrt(var_pred)
 
     def predict_interval(self, X, alpha=0.05):
         """Build prediction confidence intervals using the debiased lasso.
@@ -924,9 +921,7 @@ class DebiasedLasso(WeightedLasso):
             y_res_scaled = y_res * sample_weight / np.sum(sample_weight)
         else:
             y_res_scaled = y_res / n_samples
-        delta_coef = np.matmul(
-            theta_hat, np.matmul(X.T, y_res_scaled))
-        return delta_coef
+        return np.matmul(theta_hat, np.matmul(X.T, y_res_scaled))
 
     def _get_optimal_alpha(self, X, y, sample_weight):
         # To be done once per target. Assumes y can be flattened.
@@ -962,9 +957,7 @@ class DebiasedLasso(WeightedLasso):
         for i in range(1, n_features):
             C_hat[i][:i] = -coefs[i][:i]
             C_hat[i][i + 1:] = -coefs[i][i:]
-        # Compute theta_hat
-        theta_hat = np.diag(1 / tausq) @ C_hat
-        return theta_hat
+        return np.diag(1 / tausq) @ C_hat
 
     def _get_unscaled_coef_var(self, X, theta_hat, sample_weight):
         if sample_weight is not None:
@@ -972,9 +965,7 @@ class DebiasedLasso(WeightedLasso):
             sigma = X.T @ (norm_weights.reshape(-1, 1) * X)
         else:
             sigma = np.matmul(X.T, X) / X.shape[0]
-        _unscaled_coef_var = np.matmul(
-            np.matmul(theta_hat, sigma), theta_hat.T) / X.shape[0]
-        return _unscaled_coef_var
+        return np.matmul(np.matmul(theta_hat, sigma), theta_hat.T) / X.shape[0]
 
 
 @_add_normalize
@@ -1229,9 +1220,8 @@ class MultiOutputDebiasedLasso(MultiOutputRegressor):
         """
         if len(self.estimators_) == 1:
             return self.estimators_[0].intercept__interval(alpha=alpha)
-        else:
-            intercepts = np.array([estimator.intercept__interval(alpha=alpha) for estimator in self.estimators_])
-            return intercepts[:, 0], intercepts[:, 1]
+        intercepts = np.array([estimator.intercept__interval(alpha=alpha) for estimator in self.estimators_])
+        return intercepts[:, 0], intercepts[:, 1]
 
     def get_params(self, deep=True):
         """Get parameters for this estimator."""
@@ -1302,7 +1292,7 @@ class WeightedLassoCVWrapper:
         if key in self.known_params:
             return getattr(self.model, key)
         else:
-            raise AttributeError("No attribute " + key)
+            raise AttributeError(f"No attribute {key}")
 
     def __setattr__(self, key, value):
         if key in self.known_params:
@@ -1422,7 +1412,7 @@ class SelectiveRegularization:
         # The unpenalized model can't contain an intercept, because in the analysis above
         # we rely on the fact that M(X beta) = (M X) beta, but M(X beta + c) is not the same
         # as (M X) beta + c, so the learned coef and intercept will be wrong
-        intercept = self.penalized_model.predict(np.zeros_like(X2[0:1]))
+        intercept = self.penalized_model.predict(np.zeros_like(X2[:1]))
         if not np.allclose(intercept, 0):
             raise AttributeError("The penalized model has a non-zero intercept; to fit an intercept "
                                  "you should instead either set fit_intercept to True when initializing the "
@@ -1499,7 +1489,7 @@ class SelectiveRegularization:
             # Note: for known attributes that have been set this method will not be called,
             # so we should just throw here because this is an attribute belonging to this class
             # but which hasn't yet been set on this instance
-            raise AttributeError("No attribute " + key)
+            raise AttributeError(f"No attribute {key}")
 
     def __setattr__(self, key, value):
         if key not in self.known_params:
@@ -1555,15 +1545,9 @@ class _StatsModelsWrapper(BaseEstimator):
             row containts the coefficients corresponding to the p-th coordinate of the label.
         """
         if self.fit_intercept:
-            if self._n_out == 0:
-                return self._param[1:]
-            else:
-                return self._param[1:].T
+            return self._param[1:] if self._n_out == 0 else self._param[1:].T
         else:
-            if self._n_out == 0:
-                return self._param
-            else:
-                return self._param.T
+            return self._param if self._n_out == 0 else self._param.T
 
     @property
     def intercept_(self):
@@ -1766,27 +1750,26 @@ class StatsModelsLinearRegression(_StatsModelsWrapper):
                     "sample_var represents the variance of the original observations that are "
                     "summarized in this sample. If it's zero, please use sample_wegiht instead "
                     "to reflect the weight for each individual sample!")
-        else:
-            if np.any(np.equal(freq_weight, 1) & np.not_equal(np.sum(sample_var, axis=1), 0)):
-                warnings.warn(
-                    "Variance was set to non-zero for an observation with freq_weight=1! "
-                    "sample_var represents the variance of the original observations that are "
-                    "summarized in this sample. Hence, cannot have a non-zero variance if only "
-                    "one observations was summarized. Inference will be invalid!")
-            elif np.any(np.not_equal(freq_weight, 1) & np.equal(np.sum(sample_var, axis=1), 0)):
-                warnings.warn(
-                    "Variance was set to zero for an observation with freq_weight>1! "
-                    "sample_var represents the variance of the original observations that are "
-                    "summarized in this sample. If it's zero, please use sample_wegiht instead "
-                    "to reflect the weight for each individual sample!")
+        elif np.any(np.equal(freq_weight, 1) & np.not_equal(np.sum(sample_var, axis=1), 0)):
+            warnings.warn(
+                "Variance was set to non-zero for an observation with freq_weight=1! "
+                "sample_var represents the variance of the original observations that are "
+                "summarized in this sample. Hence, cannot have a non-zero variance if only "
+                "one observations was summarized. Inference will be invalid!")
+        elif np.any(np.not_equal(freq_weight, 1) & np.equal(np.sum(sample_var, axis=1), 0)):
+            warnings.warn(
+                "Variance was set to zero for an observation with freq_weight>1! "
+                "sample_var represents the variance of the original observations that are "
+                "summarized in this sample. If it's zero, please use sample_wegiht instead "
+                "to reflect the weight for each individual sample!")
 
         # check array shape
         assert (X.shape[0] == y.shape[0] == sample_weight.shape[0] ==
                 freq_weight.shape[0] == sample_var.shape[0]), "Input lengths not compatible!"
         if y.ndim >= 2:
-            assert (y.ndim == sample_var.ndim and
-                    y.shape[1] == sample_var.shape[1]), "Input shapes not compatible: {}, {}!".format(
-                y.shape, sample_var.shape)
+            assert (
+                y.ndim == sample_var.ndim and y.shape[1] == sample_var.shape[1]
+            ), f"Input shapes not compatible: {y.shape}, {sample_var.shape}!"
 
         # weight X and y and sample_var
         weighted_X = X * np.sqrt(sample_weight).reshape(-1, 1)

@@ -64,7 +64,7 @@ class TestMonteCarlo(unittest.TestCase):
             est = gen(mc_iters=2, mc_agg='median')
             assert est.mc_iters == 2
             assert est.mc_agg == 'median'
-        for gen in [OrthoIV(model_y_xw=LinearRegression(),
+        for _ in [OrthoIV(model_y_xw=LinearRegression(),
                             model_t_xw=LinearRegression(),
                             model_z_xw=LinearRegression(), mc_iters=2, mc_agg='median'),
                     DMLIV(model_y_xw=LinearRegression(),

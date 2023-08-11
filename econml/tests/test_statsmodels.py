@@ -120,10 +120,7 @@ class StatsModelsOLS:
 
     @property
     def coef_(self):
-        if self.fit_intercept:
-            return self.results.params[1:]
-        else:
-            return self.results.params
+        return self.results.params[1:] if self.fit_intercept else self.results.params
 
     def coef__interval(self, alpha):
         if self.fit_intercept:
@@ -133,10 +130,7 @@ class StatsModelsOLS:
 
     @property
     def intercept_(self):
-        if self.fit_intercept:
-            return self.results.params[0]
-        else:
-            return 0
+        return self.results.params[0] if self.fit_intercept else 0
 
     def intercept__interval(self, alpha):
         if self.fit_intercept:
@@ -146,16 +140,19 @@ class StatsModelsOLS:
 
 
 def _compare_classes(est, lr, X_test, alpha=.05, tol=1e-12):
-    assert np.all(np.abs(est.coef_ - lr.coef_) < tol), "{}, {}".format(est.coef_, lr.coef_)
+    assert np.all(np.abs(est.coef_ - lr.coef_) < tol), f"{est.coef_}, {lr.coef_}"
     assert np.all(np.abs(np.array(est.coef__interval(alpha=alpha)) -
                          np.array(lr.coef__interval(alpha=alpha))) < tol), \
         "{}, {}".format(est.coef__interval(alpha=alpha), np.array(lr.coef__interval(alpha=alpha)))
-    assert np.all(np.abs(est.intercept_ - lr.intercept_) < tol), "{}, {}".format(est.intercept_, lr.intercept_)
+    assert np.all(
+        np.abs(est.intercept_ - lr.intercept_) < tol
+    ), f"{est.intercept_}, {lr.intercept_}"
     assert np.all(np.abs(np.array(est.intercept__interval(alpha=alpha)) -
                          np.array(lr.intercept__interval(alpha=alpha))) < tol), \
         "{}, {}".format(est.intercept__interval(alpha=alpha), lr.intercept__interval(alpha=alpha))
-    assert np.all(np.abs(est.predict(X_test) - lr.predict(X_test)) <
-                  tol), "{}, {}".format(est.predict(X_test), lr.predict(X_test))
+    assert np.all(
+        np.abs(est.predict(X_test) - lr.predict(X_test)) < tol
+    ), f"{est.predict(X_test)}, {lr.predict(X_test)}"
     assert np.all(np.abs(np.array(est.predict_interval(X_test, alpha=alpha)) -
                          np.array(lr.predict_interval(X_test, alpha=alpha))) < tol), \
         "{}, {}".format(est.predict_interval(X_test, alpha=alpha), lr.predict_interval(X_test, alpha=alpha))
@@ -182,7 +179,7 @@ def _summarize(X, y, w=None):
     y2 = []
     w1 = []
     w2 = []
-    for it, xt in enumerate(X_unique):
+    for xt in X_unique:
         mask = (X == xt).all(axis=1)
         if mask.any():
             y_mask = y[mask]
@@ -243,12 +240,13 @@ def _summarize(X, y, w=None):
 
 
 def _compare_dml_classes(est, lr, X_test, alpha=.05, tol=1e-10):
-    assert np.all(np.abs(est.coef_ - lr.coef_) < tol), "{}, {}".format(est.coef_, lr.coef_)
+    assert np.all(np.abs(est.coef_ - lr.coef_) < tol), f"{est.coef_}, {lr.coef_}"
     assert np.all(np.abs(np.array(est.coef__interval(alpha=alpha)) - np.array(lr.coef__interval(alpha=alpha))) <
                   tol), \
         "{}, {}".format(np.array(est.coef__interval(alpha=alpha)), np.array(lr.coef__interval(alpha=alpha)))
-    assert np.all(np.abs(est.effect(X_test) - lr.effect(X_test)) <
-                  tol), "{}, {}".format(est.effect(X_test), lr.effect(X_test))
+    assert np.all(
+        np.abs(est.effect(X_test) - lr.effect(X_test)) < tol
+    ), f"{est.effect(X_test)}, {lr.effect(X_test)}"
     assert np.all(np.abs(np.array(est.effect_interval(X_test, alpha=alpha)) -
                          np.array(lr.effect_interval(X_test, alpha=alpha))) < tol), \
         "{}, {}".format(est.effect_interval(X_test, alpha=alpha), lr.effect_interval(X_test, alpha=alpha))
@@ -259,8 +257,9 @@ def _compare_dr_classes(est, lr, X_test, alpha=.05, tol=1e-10):
     assert np.all(np.abs(np.array(est.coef__interval(T=1, alpha=alpha)) -
                          np.array(lr.coef__interval(T=1, alpha=alpha))) < tol), \
         "{}, {}".format(np.array(est.coef__interval(T=1, alpha=alpha)), np.array(lr.coef__interval(T=1, alpha=alpha)))
-    assert np.all(np.abs(est.effect(X_test) - lr.effect(X_test)) <
-                  tol), "{}, {}".format(est.effect(X_test), lr.effect(X_test))
+    assert np.all(
+        np.abs(est.effect(X_test) - lr.effect(X_test)) < tol
+    ), f"{est.effect(X_test)}, {lr.effect(X_test)}"
     assert np.all(np.abs(np.array(est.effect_interval(X_test, alpha=alpha)) -
                          np.array(lr.effect_interval(X_test, alpha=alpha))) < tol), \
         "{}, {}".format(est.effect_interval(X_test, alpha=alpha), lr.effect_interval(X_test, alpha=alpha))
@@ -339,13 +338,17 @@ class TestStatsModels(unittest.TestCase):
 
         est = OLS().fit(X, y)
         lr = LinearRegression().fit(X, y)
-        assert np.all(np.abs(est.coef_ - lr.coef_) < 1e-12), "{}, {}".format(est.coef_, lr.coef_)
-        assert np.all(np.abs(est.intercept_ - lr.intercept_) < 1e-12), "{}, {}".format(est.coef_, lr.intercept_)
+        assert np.all(np.abs(est.coef_ - lr.coef_) < 1e-12), f"{est.coef_}, {lr.coef_}"
+        assert np.all(
+            np.abs(est.intercept_ - lr.intercept_) < 1e-12
+        ), f"{est.coef_}, {lr.intercept_}"
 
         est = OLS(fit_intercept=False).fit(X, y)
         lr = LinearRegression(fit_intercept=False).fit(X, y)
-        assert np.all(np.abs(est.coef_ - lr.coef_) < 1e-12), "{}, {}".format(est.coef_, lr.coef_)
-        assert np.all(np.abs(est.intercept_ - lr.intercept_) < 1e-12), "{}, {}".format(est.coef_, lr.intercept_)
+        assert np.all(np.abs(est.coef_ - lr.coef_) < 1e-12), f"{est.coef_}, {lr.coef_}"
+        assert np.all(
+            np.abs(est.intercept_ - lr.intercept_) < 1e-12
+        ), f"{est.coef_}, {lr.intercept_}"
 
     def test_inference(self):
         """ Testing that we recover the expected standard errors and confidence intervals in a known example """

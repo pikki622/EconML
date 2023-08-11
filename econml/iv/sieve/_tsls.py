@@ -67,7 +67,7 @@ class HermiteFeatures(TransformerMixin):
         n = shape(X)[0]
         ncols = shape(X)[1]
         columns = []
-        for indices in product(*[range(ncols) for i in range(self._shift)]):
+        for indices in product(*[range(ncols) for _ in range(self._shift)]):
             if self._joint:
                 columns.append(cross_product(*[self._column_feats(X[:, i], indices.count(i))
                                                for i in range(shape(X)[1])]))
@@ -354,7 +354,4 @@ class SieveTSLS(BaseCateEstimator):
         features = reshape(features, (size(T), -1))
         output = self._model_Y.predict(_add_zeros(np.hstack([W, features])))
         output = reshape(output, shape(T) + shape(output)[1:])
-        if ndim(output) == 3:
-            return transpose(output, (0, 2, 1))  # transpose trailing T and Y dims
-        else:
-            return output
+        return transpose(output, (0, 2, 1)) if ndim(output) == 3 else output

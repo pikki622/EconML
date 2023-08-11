@@ -90,12 +90,11 @@ def _cross_fit(model_instance, X, y, split_indices, sample_weight=None, predict_
         model_instance2.fit(X[split_2], y[split_2])
         pred_1 = predict_func2(X[split_1])
         model_instance1.fit(X[split_1], y[split_1])
-        pred_2 = predict_func1(X[split_2])
     else:
         _fit_weighted_pipeline(model_instance2, X[split_2], y[split_2], sample_weight[split_2])
         pred_1 = predict_func2(X[split_1])
         _fit_weighted_pipeline(model_instance1, X[split_1], y[split_1], sample_weight[split_1])
-        pred_2 = predict_func1(X[split_2])
+    pred_2 = predict_func1(X[split_2])
     # Must make sure indices are merged correctly
     sorted_split_indices = np.argsort(np.concatenate(split_indices), kind='mergesort')
     return np.concatenate((pred_1, pred_2))[sorted_split_indices]
@@ -141,12 +140,11 @@ def _group_cross_fit(model_instance, X, y, t, split_indices, sample_weight=None,
         model_instance2.fit(Xt[split_2], y[split_2])
         pred_1 = _group_predict(X[split_1], n_groups, predict_func2)
         model_instance1.fit(Xt[split_1], y[split_1])
-        pred_2 = _group_predict(X[split_2], n_groups, predict_func1)
     else:
         _fit_weighted_pipeline(model_instance2, Xt[split_2], y[split_2], sample_weight[split_2])
         pred_1 = _group_predict(X[split_1], n_groups, predict_func2)
         _fit_weighted_pipeline(model_instance1, Xt[split_1], y[split_1], sample_weight[split_1])
-        pred_2 = _group_predict(X[split_2], n_groups, predict_func1)
+    pred_2 = _group_predict(X[split_2], n_groups, predict_func1)
     # Must make sure indices are merged correctly
     sorted_split_indices = np.argsort(np.concatenate(split_indices), kind='mergesort')
     return np.concatenate((pred_1, pred_2))[sorted_split_indices]
@@ -325,14 +323,25 @@ class BaseOrthoForest(TreatmentExpansionMixin, LinearCateEstimator):
         if not self.model_is_fitted:
             raise NotFittedError('This {0} instance is not fitted yet.'.format(self.__class__.__name__))
         X = check_array(X)
-        results = Parallel(n_jobs=self.n_jobs, backend=self.backend,
-                           batch_size=self.batch_size, verbose=self.verbose)(
-            delayed(_pointwise_effect)(X_single, *self._pw_effect_inputs(X_single, stderr=stderr),
-                                       self.second_stage_nuisance_estimator, self.second_stage_parameter_estimator,
-                                       self.moment_and_mean_gradient_estimator, self.slice_len, self.n_slices,
-                                       self.n_trees,
-                                       stderr=stderr) for X_single in X)
-        return results
+        return Parallel(
+            n_jobs=self.n_jobs,
+            backend=self.backend,
+            batch_size=self.batch_size,
+            verbose=self.verbose,
+        )(
+            delayed(_pointwise_effect)(
+                X_single,
+                *self._pw_effect_inputs(X_single, stderr=stderr),
+                self.second_stage_nuisance_estimator,
+                self.second_stage_parameter_estimator,
+                self.moment_and_mean_gradient_estimator,
+                self.slice_len,
+                self.n_slices,
+                self.n_trees,
+                stderr=stderr
+            )
+            for X_single in X
+        )
 
     def _pw_effect_inputs(self, X_single, stderr=False):
         w1, w2 = self._get_weights(X_single)
@@ -392,10 +401,7 @@ class BaseOrthoForest(TreatmentExpansionMixin, LinearCateEstimator):
         """
         w1 = np.zeros(self.Y_one.shape[0])
         w2 = np.zeros(self.Y_two.shape[0])
-        if tree_slice is None:
-            tree_range = range(self.n_trees)
-        else:
-            tree_range = range(*tree_slice)
+        tree_range = range(self.n_trees) if tree_slice is None else range(*tree_slice)
         for t in tree_range:
             leaf = self.forest_one_trees[t].find_split(X_single)
             weight_indexes = self.forest_one_subsample_ind[t][leaf.est_sample_inds]
@@ -435,9 +441,17 @@ class BaseOrthoForest(TreatmentExpansionMixin, LinearCateEstimator):
         for it in range(self.n_slices):
             half_sample_inds = self.random_state.choice(
                 X.shape[0], X.shape[0] // 2, replace=False)
-            for _ in np.arange(it * self.slice_len, min((it + 1) * self.slice_len, self.n_trees)):
-                subsample_ind.append(half_sample_inds[self.random_state.choice(
-                    X.shape[0] // 2, subsample_size, replace=self.bootstrap)])
+            subsample_ind.extend(
+                half_sample_inds[
+                    self.random_state.choice(
+                        X.shape[0] // 2, subsample_size, replace=self.bootstrap
+                    )
+                ]
+                for _ in np.arange(
+                    it * self.slice_len,
+                    min((it + 1) * self.slice_len, self.n_trees),
+                )
+            )
         return np.asarray(subsample_ind)
 
 
@@ -614,9 +628,7 @@ class DMLOrthoForest(BaseOrthoForest):
     def _combine(self, X, W):
         if X is None:
             return W
-        if W is None:
-            return X
-        return np.hstack([X, W])
+        return X if W is None else np.hstack([X, W])
 
     # Need to redefine fit here for auto inference to work due to a quirk in how
     # wrap_fit is defined
@@ -702,9 +714,9 @@ class _DMLOrthoForest_nuisance_estimator_generator:
     def __call__(self, Y, T, X, W, sample_weight=None, split_indices=None):
         if self.global_residualization:
             return 0
-        if self.discrete_treatment:
             # Check that all discrete treatments are represented
-            if len(np.unique(T @ np.arange(1, T.shape[1] + 1))) < T.shape[1] + 1:
+        if len(np.unique(T @ np.arange(1, T.shape[1] + 1))) < T.shape[1] + 1:
+            if self.discrete_treatment:
                 return None
         # Nuissance estimates evaluated with cross-fitting
         this_random_state = check_random_state(self.random_state)
@@ -725,11 +737,7 @@ class _DMLOrthoForest_nuisance_estimator_generator:
                 # Define 2-fold iterator
                 kfold_it = KFold(n_splits=2, shuffle=True, random_state=this_random_state).split(X)
                 split_indices = list(kfold_it)[0]
-        if W is not None:
-            X_tilde = np.concatenate((X, W), axis=1)
-        else:
-            X_tilde = X
-
+        X_tilde = np.concatenate((X, W), axis=1) if W is not None else X
         try:
             if self.second_stage:
                 T_hat = _cross_fit(self.model_T, X_tilde, T, split_indices, sample_weight=sample_weight)
@@ -751,12 +759,11 @@ def _DMLOrthoForest_parameter_estimator_func(Y, T, X,
     """Calculate the parameter of interest for points given by (Y, T) and corresponding nuisance estimates."""
     # Compute residuals
     Y_res, T_res = _DMLOrthoForest_get_conforming_residuals(Y, T, nuisance_estimates)
-    # Compute coefficient by OLS on residuals
-    param_estimate = LinearRegression(fit_intercept=False).fit(
-        T_res, Y_res, sample_weight=sample_weight
-    ).coef_
-    # Parameter returned by LinearRegression is (d_T, )
-    return param_estimate
+    return (
+        LinearRegression(fit_intercept=False)
+        .fit(T_res, Y_res, sample_weight=sample_weight)
+        .coef_
+    )
 
 
 class _DMLOrthoForest_second_stage_parameter_estimator_gen:
@@ -1079,10 +1086,7 @@ class DROrthoForest(BaseOrthoForest):
                         msg = str(warn)
                         if "The least populated class in y has only 1 members" in msg:
                             return None
-            if W is not None:
-                X_tilde = np.concatenate((X, W), axis=1)
-            else:
-                X_tilde = X
+            X_tilde = np.concatenate((X, W), axis=1) if W is not None else X
             try:
                 if not second_stage:
                     # No need to crossfit for internal nodes
@@ -1100,6 +1104,7 @@ class DROrthoForest(BaseOrthoForest):
                                  " This might be caused by too few sample in the tree leafs." +
                                  " Try increasing the min_leaf_size.")
             return Y_hat, propensities
+
         return nuisance_estimator
 
     @staticmethod
@@ -1109,9 +1114,7 @@ class DROrthoForest(BaseOrthoForest):
         """Calculate the parameter of interest for points given by (Y, T) and corresponding nuisance estimates."""
         # Compute partial moments
         pointwise_params = DROrthoForest._partial_moments(Y, T, nuisance_estimates)
-        param_estimate = np.average(pointwise_params, weights=sample_weight, axis=0)
-        # If any of the values in the parameter estimate is nan, return None
-        return param_estimate
+        return np.average(pointwise_params, weights=sample_weight, axis=0)
 
     @staticmethod
     def second_stage_parameter_estimator_gen(lambda_reg):
@@ -1221,8 +1224,9 @@ class BLBInference(Inference):
         self.d_y = self._d_y[0] if self._d_y else 1
         # Test whether the input estimator is supported
         if not hasattr(self._estimator, "_predict"):
-            raise TypeError("Unsupported estimator of type {}.".format(self._estimator.__class__.__name__) +
-                            " Estimators must implement the '_predict' method with the correct signature.")
+            raise TypeError(
+                f"Unsupported estimator of type {self._estimator.__class__.__name__}. Estimators must implement the '_predict' method with the correct signature."
+            )
         return self
 
     def const_marginal_effect_interval(self, X=None, *, alpha=0.05):

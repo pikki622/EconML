@@ -183,8 +183,7 @@ class BaseGRF(BaseEnsemble, metaclass=ABCMeta):
             delayed(tree.decision_path)(X, check_input=False)
             for tree in self.estimators_)
 
-        n_nodes = [0]
-        n_nodes.extend([i.shape[1] for i in indicators])
+        n_nodes = [0, *[i.shape[1] for i in indicators]]
         n_nodes_ptr = np.array(n_nodes).cumsum()
 
         return sparse_hstack(indicators).tocsr(), n_nodes_ptr
@@ -315,32 +314,38 @@ class BaseGRF(BaseEnsemble, metaclass=ABCMeta):
         else:
             if self.inference:
                 if not isinstance(self.subforest_size, numbers.Integral):
-                    raise ValueError("Parameter `subforest_size` must be "
-                                     "an integer but got value {}.".format(self.subforest_size))
+                    raise ValueError(
+                        f"Parameter `subforest_size` must be an integer but got value {self.subforest_size}."
+                    )
                 if self.subforest_size < 2:
-                    raise ValueError("Parameter `subforest_size` must be at least 2 if `inference=True`, "
-                                     "but got value {}".format(self.subforest_size))
-                if not (n_more_estimators % self.subforest_size == 0):
-                    raise ValueError("The number of estimators to be constructed must be divisible "
-                                     "the `subforest_size` parameter. Asked to build `n_estimators={}` "
-                                     "with `subforest_size={}`.".format(n_more_estimators, self.subforest_size))
+                    raise ValueError(
+                        f"Parameter `subforest_size` must be at least 2 if `inference=True`, but got value {self.subforest_size}"
+                    )
+                if n_more_estimators % self.subforest_size != 0:
+                    raise ValueError(
+                        f"The number of estimators to be constructed must be divisible the `subforest_size` parameter. Asked to build `n_estimators={n_more_estimators}` with `subforest_size={self.subforest_size}`."
+                    )
                 if n_samples_subsample > n_samples // 2:
                     if isinstance(self.max_samples, numbers.Integral):
-                        raise ValueError("Parameter `max_samples` must be in [1, n_samples // 2], "
-                                         "if `inference=True`. "
-                                         "Got values n_samples={}, max_samples={}".format(n_samples, self.max_samples))
+                        raise ValueError(
+                            f"Parameter `max_samples` must be in [1, n_samples // 2], if `inference=True`. Got values n_samples={n_samples}, max_samples={self.max_samples}"
+                        )
                     else:
-                        raise ValueError("Parameter `max_samples` must be in (0, .5], if `inference=True`. "
-                                         "Got value {}".format(self.max_samples))
+                        raise ValueError(
+                            f"Parameter `max_samples` must be in (0, .5], if `inference=True`. Got value {self.max_samples}"
+                        )
 
             if self.warm_start and len(self.estimators_) > 0:
                 # We draw from the random state to get the random state we
                 # would have got if we hadn't used a warm_start.
                 random_state.randint(MAX_INT, size=len(self.estimators_))
 
-            trees = [self._make_estimator(append=False,
-                                          random_state=random_state).init()
-                     for i in range(n_more_estimators)]
+            trees = [
+                self._make_estimator(
+                    append=False, random_state=random_state
+                ).init()
+                for _ in range(n_more_estimators)
+            ]
 
             if self.inference:
                 if self.warm_start:
@@ -404,16 +409,15 @@ class BaseGRF(BaseEnsemble, metaclass=ABCMeta):
         """
         check_is_fitted(self)
         subsample_random_state = check_random_state(self.subsample_random_seed_)
-        if self.inference_:
-            s_inds = []
-            for sl, n_, ns_ in zip(self.slices_, self.slices_n_samples_, self.slices_n_samples_subsample_):
-                half_sample_inds = subsample_random_state.choice(n_, n_ // 2, replace=False)
-                s_inds.extend([half_sample_inds[subsample_random_state.choice(n_ // 2, ns_, replace=False)]
-                               for _ in range(len(sl))])
-            return s_inds
-        else:
+        if not self.inference_:
             return [subsample_random_state.choice(n_, ns_, replace=False)
                     for n_, ns_ in zip(self.n_samples_, self.n_samples_subsample_)]
+        s_inds = []
+        for sl, n_, ns_ in zip(self.slices_, self.slices_n_samples_, self.slices_n_samples_subsample_):
+            half_sample_inds = subsample_random_state.choice(n_, n_ // 2, replace=False)
+            s_inds.extend([half_sample_inds[subsample_random_state.choice(n_ // 2, ns_, replace=False)]
+                           for _ in range(len(sl))])
+        return s_inds
 
     def feature_importances(self, max_depth=4, depth_decay_exponent=2.0):
         """
@@ -753,14 +757,10 @@ class BaseGRF(BaseEnsemble, metaclass=ABCMeta):
                     pred_cov[:, t, t] = pred_var_corrected[:, t]
 
         if project:
-            if point:
-                pred = np.sum(parameter * projector, axis=1)
-                if var:
-                    return pred, pred_var
-                else:
-                    return pred
-            else:
+            if not point:
                 return pred_var
+            pred = np.sum(parameter * projector, axis=1)
+            return (pred, pred_var) if var else pred
         else:
             n_outputs = self.n_outputs_ if full else self.n_relevant_outputs_
             if point and var:
@@ -793,19 +793,19 @@ class BaseGRF(BaseEnsemble, metaclass=ABCMeta):
             The lower and upper end of the confidence interval for each parameter. Return value is omitted if
             `interval=False`.
         """
-        if interval:
-            point, pred_var = self._predict_point_and_var(X, full=True, point=True, var=True)
-            lb, ub = np.zeros(point.shape), np.zeros(point.shape)
-            for t in range(self.n_outputs_):
-                var = pred_var[:, t, t]
-                assert np.isclose(var[var < 0], 0, atol=1e-8).all(), f'`pred_var` must be > 0 {var[var < 0]}'
-                var = np.maximum(var, 1e-32)
+        if not interval:
+            return self._predict_point_and_var(X, full=True, point=True, var=False)
+        point, pred_var = self._predict_point_and_var(X, full=True, point=True, var=True)
+        lb, ub = np.zeros(point.shape), np.zeros(point.shape)
+        for t in range(self.n_outputs_):
+            var = pred_var[:, t, t]
+            assert np.isclose(var[var < 0], 0, atol=1e-8).all(), f'`pred_var` must be > 0 {var[var < 0]}'
+            var = np.maximum(var, 1e-32)
 
-                pred_dist = scipy.stats.norm(loc=point[:, t], scale=np.sqrt(var))
-                lb[:, t] = pred_dist.ppf(alpha / 2)
-                ub[:, t] = pred_dist.ppf(1 - (alpha / 2))
-            return point, lb, ub
-        return self._predict_point_and_var(X, full=True, point=True, var=False)
+            pred_dist = scipy.stats.norm(loc=point[:, t], scale=np.sqrt(var))
+            lb[:, t] = pred_dist.ppf(alpha / 2)
+            ub[:, t] = pred_dist.ppf(1 - (alpha / 2))
+        return point, lb, ub
 
     def predict(self, X, interval=False, alpha=0.05):
         """ Return the prefix of relevant fitted local parameters for each x in X,

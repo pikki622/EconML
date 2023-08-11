@@ -180,13 +180,12 @@ class TestLassoExtensions(unittest.TestCase):
         cv_splitter = WeightedKFold(n_splits=3)
         wlasso_cv = list(cv_splitter.split(TestLassoExtensions.X, TestLassoExtensions.y_simple,
                                            sample_weight=sample_weight))
-        # Map weighted splitter to an extended splitter
-        index_mapper = {}
-        for i in range(TestLassoExtensions.n_samples):
-            if i < TestLassoExtensions.n_samples // 2:
-                index_mapper[i] = [i]
-            else:
-                index_mapper[i] = [i, i + TestLassoExtensions.n_samples // 2]
+        index_mapper = {
+            i: [i]
+            if i < TestLassoExtensions.n_samples // 2
+            else [i, i + TestLassoExtensions.n_samples // 2]
+            for i in range(TestLassoExtensions.n_samples)
+        }
         lasso_cv = self._map_splitter(wlasso_cv, TestLassoExtensions.n_samples +
                                       TestLassoExtensions.n_samples // 2, index_mapper)
         # Define alphas to test
@@ -249,13 +248,12 @@ class TestLassoExtensions(unittest.TestCase):
         cv_splitter = WeightedKFold(n_splits=3)
         wlasso_cv = list(cv_splitter.split(TestLassoExtensions.X, TestLassoExtensions.y_2D,
                                            sample_weight=sample_weight))
-        # Map weighted splitter to an extended splitter
-        index_mapper = {}
-        for i in range(TestLassoExtensions.n_samples):
-            if i < TestLassoExtensions.n_samples // 2:
-                index_mapper[i] = [i]
-            else:
-                index_mapper[i] = [i, i + TestLassoExtensions.n_samples // 2]
+        index_mapper = {
+            i: [i]
+            if i < TestLassoExtensions.n_samples // 2
+            else [i, i + TestLassoExtensions.n_samples // 2]
+            for i in range(TestLassoExtensions.n_samples)
+        }
         lasso_cv = self._map_splitter(wlasso_cv, TestLassoExtensions.n_samples +
                                       TestLassoExtensions.n_samples // 2, index_mapper)
         # Define alphas to test

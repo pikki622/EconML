@@ -83,18 +83,22 @@ class _FirstStageWrapper:
             return self._model.predict(self._combine(X, W, n_samples, fitting=False))
 
     def score(self, X, W, Target, sample_weight=None):
-        if hasattr(self._model, 'score'):
-            if (not self._is_Y) and self._discrete_treatment:
-                # In this case, the Target is the one-hot-encoding of the treatment variable
-                # We need to go back to the label representation of the one-hot so as to call
-                # the classifier.
-                Target = inverse_onehot(Target)
-            if sample_weight is not None:
-                return self._model.score(self._combine(X, W, Target.shape[0]), Target, sample_weight=sample_weight)
-            else:
-                return self._model.score(self._combine(X, W, Target.shape[0]), Target)
-        else:
+        if not hasattr(self._model, 'score'):
             return None
+        if (not self._is_Y) and self._discrete_treatment:
+            # In this case, the Target is the one-hot-encoding of the treatment variable
+            # We need to go back to the label representation of the one-hot so as to call
+            # the classifier.
+            Target = inverse_onehot(Target)
+        return (
+            self._model.score(
+                self._combine(X, W, Target.shape[0]),
+                Target,
+                sample_weight=sample_weight,
+            )
+            if sample_weight is not None
+            else self._model.score(self._combine(X, W, Target.shape[0]), Target)
+        )
 
 
 class _FinalWrapper:
@@ -144,7 +148,7 @@ class _FinalWrapper:
                                                  freq_weight=freq_weight, sample_var=sample_var)
             self._model.fit(fts, Y_res, **filtered_kwargs)
             self._intercept = None
-            intercept = self._model.predict(np.zeros_like(fts[0:1]))
+            intercept = self._model.predict(np.zeros_like(fts[:1]))
             if (np.count_nonzero(intercept) > 0):
                 warn("The final model has a nonzero intercept for at least one outcome; "
                      "it will be subtracted, but consider fitting a model without an intercept if possible.",

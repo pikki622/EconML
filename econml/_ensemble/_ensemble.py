@@ -28,8 +28,7 @@ def _fit_single_estimator(estimator, X, y, sample_weight=None,
         except TypeError as exc:
             if "unexpected keyword argument 'sample_weight'" in str(exc):
                 raise TypeError(
-                    "Underlying estimator {} does not support sample weights."
-                    .format(estimator.__class__.__name__)
+                    f"Underlying estimator {estimator.__class__.__name__} does not support sample weights."
                 ) from exc
             raise
     else:
@@ -59,12 +58,11 @@ def _set_random_states(estimator, random_state):
         * cross-validation splitters
         * ``scipy.stats`` rvs
     """
-    to_set = {}
-    for key in sorted(estimator.get_params(deep=True)):
-        if key == 'random_state' or key.endswith('__random_state'):
-            to_set[key] = random_state.randint(np.iinfo(np.int32).max)
-
-    if to_set:
+    if to_set := {
+        key: random_state.randint(np.iinfo(np.int32).max)
+        for key in sorted(estimator.get_params(deep=True))
+        if key == 'random_state' or key.endswith('__random_state')
+    }:
         estimator.set_params(**to_set)
 
 

@@ -34,15 +34,17 @@ class _CausalForestFinalWrapper:
         self._drate = drate
 
     def _combine(self, X, fitting=True):
-        if X is not None:
-            if self._featurizer is not None:
-                F = self._featurizer.fit_transform(X) if fitting else self._featurizer.transform(X)
-            else:
-                F = X
-        else:
+        if X is None:
             raise AttributeError("Cannot use this method with X=None. Consider "
                                  "using the LinearDML estimator.")
-        return F
+        if self._featurizer is not None:
+            return (
+                self._featurizer.fit_transform(X)
+                if fitting
+                else self._featurizer.transform(X)
+            )
+        else:
+            return X
 
     def _ate_and_stderr(self, drpreds, mask=None):
         if mask is not None:
@@ -902,7 +904,7 @@ class CausalForestDML(_BaseDML):
             intercept_title = 'Doubly Robust ATE on Training Data Results'
             smry.add_table(intercept_array, intercept_headers, intercept_stubs, intercept_title)
         except Exception as e:
-            print("Doubly Robust ATE on Training Data Results: ", str(e))
+            print("Doubly Robust ATE on Training Data Results: ", e)
 
         for t in range(0, d_t + 1):
             try:
@@ -917,10 +919,10 @@ class CausalForestDML(_BaseDML):
                     intercept_stubs = ["|".join(ind_value) for ind_value in intercept_table.index.values]
                 else:
                     intercept_stubs = intercept_table.index.tolist()
-                intercept_title = "Doubly Robust ATT(T={}) on Training Data Results".format(t)
+                intercept_title = f"Doubly Robust ATT(T={t}) on Training Data Results"
                 smry.add_table(intercept_array, intercept_headers, intercept_stubs, intercept_title)
             except Exception as e:
-                print("Doubly Robust ATT on Training Data Results: ", str(e))
+                print("Doubly Robust ATT on Training Data Results: ", e)
                 break
         if len(smry.tables) > 0:
             return smry

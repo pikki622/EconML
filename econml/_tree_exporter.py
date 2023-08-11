@@ -100,11 +100,12 @@ class _TreeExporter(_BaseTreeExporter):
         if replacement is not None:
             # HACK: it's not optimal to use a regex like this, but the base class's node_to_str doesn't expose any
             #       clean way of achieving this
-            text = re.sub("value = .*(?=" + re.escape(self.characters[5]) + ")",
-                          # make sure we don't accidentally escape anything in the substitution
-                          replacement.replace('\\', '\\\\'),
-                          text,
-                          flags=re.S)
+            text = re.sub(
+                f"value = .*(?={re.escape(self.characters[5])})",
+                replacement.replace('\\', '\\\\'),
+                text,
+                flags=re.S,
+            )
         return text
 
 
@@ -143,7 +144,7 @@ class _DOTExporter(_DOTTreeExporter):
     def tail(self):
         if self.title is not None:
             self.out_file.write("labelloc=\"t\"; \n")
-            self.out_file.write("label=\"{}\"; \n".format(self.title))
+            self.out_file.write(f'label=\"{self.title}\"; \n')
         super().tail()
 
 
@@ -185,53 +186,50 @@ class _CateTreeMixin(_TreeExporter):
 
         # Write node mean CATE
         node_info = self.node_dict[node_id]
-        node_string = 'CATE mean' + self.characters[4]
+        node_string = f'CATE mean{self.characters[4]}'
         value_text = ""
         mean = node_info['mean']
         if hasattr(mean, 'shape') and (len(mean.shape) > 0):
             if len(mean.shape) == 1:
                 for i in range(mean.shape[0]):
-                    value_text += "{}".format(np.around(mean[i], self.precision))
+                    value_text += f"{np.around(mean[i], self.precision)}"
                     if 'ci' in node_info:
-                        value_text += " ({}, {})".format(np.around(node_info['ci'][0][i], self.precision),
-                                                         np.around(node_info['ci'][1][i], self.precision))
+                        value_text += f" ({np.around(node_info['ci'][0][i], self.precision)}, {np.around(node_info['ci'][1][i], self.precision)})"
                     if i != mean.shape[0] - 1:
                         value_text += ", "
                 value_text += self.characters[4]
             elif len(mean.shape) == 2:
                 for i in range(mean.shape[0]):
                     for j in range(mean.shape[1]):
-                        value_text += "{}".format(np.around(mean[i, j], self.precision))
+                        value_text += f"{np.around(mean[i, j], self.precision)}"
                         if 'ci' in node_info:
-                            value_text += " ({}, {})".format(np.around(node_info['ci'][0][i, j], self.precision),
-                                                             np.around(node_info['ci'][1][i, j], self.precision))
+                            value_text += f" ({np.around(node_info['ci'][0][i, j], self.precision)}, {np.around(node_info['ci'][1][i, j], self.precision)})"
                         if j != mean.shape[1] - 1:
                             value_text += ", "
                     value_text += self.characters[4]
             else:
                 raise ValueError("can only handle up to 2d values")
         else:
-            value_text += "{}".format(np.around(mean, self.precision))
+            value_text += f"{np.around(mean, self.precision)}"
             if 'ci' in node_info:
-                value_text += " ({}, {})".format(np.around(node_info['ci'][0], self.precision),
-                                                 np.around(node_info['ci'][1], self.precision))
+                value_text += f" ({np.around(node_info['ci'][0], self.precision)}, {np.around(node_info['ci'][1], self.precision)})"
             value_text += self.characters[4]
         node_string += value_text
 
         # Write node std of CATE
-        node_string += "CATE std" + self.characters[4]
+        node_string += f"CATE std{self.characters[4]}"
         std = node_info['std']
         value_text = ""
         if hasattr(std, 'shape') and (len(std.shape) > 0):
             if len(std.shape) == 1:
                 for i in range(std.shape[0]):
-                    value_text += "{}".format(np.around(std[i], self.precision))
+                    value_text += f"{np.around(std[i], self.precision)}"
                     if i != std.shape[0] - 1:
                         value_text += ", "
             elif len(std.shape) == 2:
                 for i in range(std.shape[0]):
                     for j in range(std.shape[1]):
-                        value_text += "{}".format(np.around(std[i, j], self.precision))
+                        value_text += f"{np.around(std[i, j], self.precision)}"
                         if j != std.shape[1] - 1:
                             value_text += ", "
                     if i != std.shape[0] - 1:
@@ -239,7 +237,7 @@ class _CateTreeMixin(_TreeExporter):
             else:
                 raise ValueError("can only handle up to 2d values")
         else:
-            value_text += "{}".format(np.around(std, self.precision))
+            value_text += f"{np.around(std, self.precision)}"
         node_string += value_text
 
         return node_string
@@ -275,7 +273,7 @@ class _PolicyTreeMixin(_TreeExporter):
         if self.node_dict is not None:
             return self._node_replacement_text_with_dict(tree, node_id, criterion)
         value = tree.value[node_id][:, 0]
-        node_string = 'value = %s' % np.round(value[1:] - value[0], self.precision)
+        node_string = f'value = {np.round(value[1:] - value[0], self.precision)}'
 
         if tree.children_left[node_id] == _tree.TREE_LEAF:
             node_string += self.characters[4]
@@ -284,9 +282,7 @@ class _PolicyTreeMixin(_TreeExporter):
             if self.treatment_names:
                 class_name = self.treatment_names[np.argmax(value)]
             else:
-                class_name = "T%s%s%s" % (self.characters[1],
-                                          np.argmax(value),
-                                          self.characters[2])
+                class_name = f"T{self.characters[1]}{np.argmax(value)}{self.characters[2]}"
             node_string += class_name
 
         return node_string
@@ -295,43 +291,37 @@ class _PolicyTreeMixin(_TreeExporter):
 
         # Write node mean CATE
         node_info = self.node_dict[node_id]
-        node_string = 'CATE' + self.characters[4]
+        node_string = f'CATE{self.characters[4]}'
         value_text = ""
         mean = node_info['mean']
         if hasattr(mean, 'shape') and (len(mean.shape) > 0):
-            if len(mean.shape) == 1:
-                for i in range(mean.shape[0]):
-                    value_text += "{}".format(np.around(mean[i], self.precision))
-                    if 'ci' in node_info:
-                        value_text += " ({}, {})".format(np.around(node_info['ci'][0][i], self.precision),
-                                                         np.around(node_info['ci'][1][i], self.precision))
-                    if i != mean.shape[0] - 1:
-                        value_text += ", "
-                value_text += self.characters[4]
-            else:
+            if len(mean.shape) != 1:
                 raise ValueError("can only handle up to 1d values")
+            for i in range(mean.shape[0]):
+                value_text += f"{np.around(mean[i], self.precision)}"
+                if 'ci' in node_info:
+                    value_text += f" ({np.around(node_info['ci'][0][i], self.precision)}, {np.around(node_info['ci'][1][i], self.precision)})"
+                if i != mean.shape[0] - 1:
+                    value_text += ", "
         else:
-            value_text += "{}".format(np.around(mean, self.precision))
+            value_text += f"{np.around(mean, self.precision)}"
             if 'ci' in node_info:
-                value_text += " ({}, {})".format(np.around(node_info['ci'][0], self.precision),
-                                                 np.around(node_info['ci'][1], self.precision))
-            value_text += self.characters[4]
+                value_text += f" ({np.around(node_info['ci'][0], self.precision)}, {np.around(node_info['ci'][1], self.precision)})"
+        value_text += self.characters[4]
         node_string += value_text
 
         if tree.children_left[node_id] == _tree.TREE_LEAF:
             # Write recommended treatment and value - cost
             value = tree.value[node_id][:, 0]
-            node_string += 'value - cost = %s' % np.round(value[1:], self.precision) + self.characters[4]
+            node_string += f'value - cost = {np.round(value[1:], self.precision)}{self.characters[4]}'
 
             value = tree.value[node_id][:, 0]
             node_string += "Treatment: "
             if self.treatment_names:
                 class_name = self.treatment_names[np.argmax(value)]
             else:
-                class_name = "T%s%s%s" % (self.characters[1],
-                                          np.argmax(value),
-                                          self.characters[2])
-            node_string += "{}".format(class_name)
+                class_name = f"T{self.characters[1]}{np.argmax(value)}{self.characters[2]}"
+            node_string += f"{class_name}"
             node_string += self.characters[4]
 
         return node_string

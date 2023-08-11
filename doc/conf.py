@@ -250,9 +250,7 @@ doctest_default_flags = (doctest.DONT_ACCEPT_TRUE_FOR_1 |
 def exclude_entity(app, what, name, obj, skip, opts):
     # we can document otherwise excluded entities here by returning False
     # or skip otherwise included entities by returning True
-    if name in ["_RLearner", "_OrthoLearner", "_crossfit"]:
-        return False
-    return None
+    return False if name in ["_RLearner", "_OrthoLearner", "_crossfit"] else None
 
 
 def setup(app):

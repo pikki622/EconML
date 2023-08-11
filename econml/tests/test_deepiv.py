@@ -44,12 +44,12 @@ class TestDeepIV(unittest.TestCase):
         fit_opts = {"epochs": 2}
 
         """Make sure that arbitrary sizes for t, z, x, and y don't break the basic operations."""
+        n = 500
         for _ in range(5):
             d_t = np.random.choice(range(1, 4))  # number of treatments
             d_z = np.random.choice(range(1, 4))  # number of instruments
             d_x = np.random.choice(range(1, 4))  # number of features
             d_y = np.random.choice(range(1, 4))  # number of responses
-            n = 500
             # simple DGP only for illustration
             x = np.random.uniform(size=(n, d_x))
             z = np.random.uniform(size=(n, d_z))
@@ -105,11 +105,11 @@ class TestDeepIV(unittest.TestCase):
             deepIv.predict(T=t, X=x)
             deepIv.effect(x, np.zeros_like(t), t)
 
+        n = 500
         # also test vector t and y
         for _ in range(3):
             d_z = np.random.choice(range(1, 4))  # number of instruments
             d_x = np.random.choice(range(1, 4))  # number of features
-            n = 500
             # simple DGP only for illustration
             x = np.random.uniform(size=(n, d_x))
             z = np.random.uniform(size=(n, d_z))
@@ -204,8 +204,8 @@ class TestDeepIV(unittest.TestCase):
 
             losses.append(np.mean(np.square(y_fresh - deepIv.predict(p_fresh, x_fresh))))
             marg_effs.append(deepIv.marginal_effect(np.array([[0.3], [0.5], [0.7]]), np.array([[0.4], [0.6], [0.2]])))
-        print("losses: {}".format(losses))
-        print("marg_effs: {}".format(marg_effs))
+        print(f"losses: {losses}")
+        print(f"marg_effs: {marg_effs}")
 
     @pytest.mark.slow
     def test_deepiv_models_paper(self):

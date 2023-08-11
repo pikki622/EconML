@@ -35,9 +35,7 @@ class _PolicyModelFinal(_ModelFinal):
         if (X is not None) and (self._featurizer is not None):
             X = self._featurizer.transform(X)
         pred = self.model_cate.predict_value(X)[:, 1:]
-        if self.d_y:  # need to reintroduce singleton Y dimension
-            return pred[:, np.newaxis, :]
-        return pred
+        return pred[:, np.newaxis, :] if self.d_y else pred
 
     def score(self, Y, T, X=None, W=None, *, nuisances, sample_weight=None, groups=None):
         return 0

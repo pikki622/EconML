@@ -38,15 +38,9 @@ class TestDMLIV(unittest.TestCase):
             else:
                 y = y = np.random.normal(size=(n, d_y))
             for d_w in [None, 10]:
-                if d_w is None:
-                    W = None
-                else:
-                    W = np.random.normal(size=(n, d_w))
+                W = None if d_w is None else np.random.normal(size=(n, d_w))
                 for d_x in [None, 3]:
-                    if d_x is None:
-                        X = None
-                    else:
-                        X = np.random.normal(size=(n, d_x))
+                    X = None if d_x is None else np.random.normal(size=(n, d_x))
                     for binary_Z in [True, False]:
                         if binary_Z:
                             Z = np.random.choice([3, 4], size=(n,))

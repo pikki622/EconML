@@ -49,7 +49,7 @@ class DoWhyWrapper:
         parameters = init_signature.parameters.values()
         params = []
         for p in parameters:
-            if p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD:
+            if p.kind in [p.VAR_POSITIONAL, p.VAR_KEYWORD]:
                 raise RuntimeError("cate estimators should always specify their parameters in the signature "
                                    "of their __init__ (no varargs, no varkwargs). "
                                    f"{self._cate_estimator} with constructor {init_signature} doesn't "
@@ -125,20 +125,11 @@ class DoWhyWrapper:
         if treatment_names is None:
             treatment_names = get_input_columns(T, prefix="T")
         if feature_names is None:
-            if X is not None:
-                feature_names = get_input_columns(X, prefix="X")
-            else:
-                feature_names = []
+            feature_names = get_input_columns(X, prefix="X") if X is not None else []
         if confounder_names is None:
-            if W is not None:
-                confounder_names = get_input_columns(W, prefix="W")
-            else:
-                confounder_names = []
+            confounder_names = get_input_columns(W, prefix="W") if W is not None else []
         if instrument_names is None:
-            if Z is not None:
-                instrument_names = get_input_columns(Z, prefix="Z")
-            else:
-                instrument_names = []
+            instrument_names = get_input_columns(Z, prefix="Z") if Z is not None else []
         column_names = outcome_names + treatment_names + feature_names + confounder_names + instrument_names
 
         # transfer input to numpy arrays
@@ -168,9 +159,7 @@ class DoWhyWrapper:
         )
         self.identified_estimand_ = self.dowhy_.identify_effect(proceed_when_unidentifiable=True)
         method_name = "backdoor." + self._cate_estimator.__module__ + "." + self._cate_estimator.__class__.__name__
-        init_params = {}
-        for p in self._get_params():
-            init_params[p] = getattr(self._cate_estimator, p)
+        init_params = {p: getattr(self._cate_estimator, p) for p in self._get_params()}
         self.estimate_ = self.dowhy_.estimate_effect(self.identified_estimand_,
                                                      method_name=method_name,
                                                      control_value=control_value,

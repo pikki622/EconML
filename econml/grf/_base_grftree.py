@@ -386,8 +386,7 @@ class GRFTree(BaseTree):
         """
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
-        pred = self.tree_.predict(X)
-        return pred
+        return self.tree_.predict(X)
 
     def predict_full(self, X, check_input=True):
         """Return the fitted local parameters for each X, i.e. theta(X).
@@ -408,8 +407,7 @@ class GRFTree(BaseTree):
         """
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
-        pred = self.tree_.predict_full(X)
-        return pred
+        return self.tree_.predict_full(X)
 
     def predict_alpha_and_jac(self, X, check_input=True):
         """Predict the local jacobian ``E[J | X=x]`` and the local alpha ``E[A | X=x]`` of

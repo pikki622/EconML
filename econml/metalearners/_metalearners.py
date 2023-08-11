@@ -125,9 +125,10 @@ class TLearner(TreatmentExpansionMixin, LinearCateEstimator):
         """
         # Check inputs
         X = check_array(X)
-        taus = []
-        for ind in range(self._d_t[0]):
-            taus.append(self.models[ind + 1].predict(X) - self.models[0].predict(X))
+        taus = [
+            self.models[ind + 1].predict(X) - self.models[0].predict(X)
+            for ind in range(self._d_t[0])
+        ]
         taus = np.column_stack(taus).reshape((-1,) + self._d_t + self._d_y)  # shape as of m*d_t*d_y
         if self._d_y:
             taus = transpose(taus, (0, 2, 1))  # shape as of m*d_y*d_t
@@ -243,12 +244,20 @@ class SLearner(TreatmentExpansionMixin, LinearCateEstimator):
         Xs, Ts = broadcast_unit_treatments(X, self._d_t[0] + 1)
         feat_arr = np.concatenate((Xs, Ts), axis=1)
         prediction = self.overall_model.predict(feat_arr).reshape((-1, self._d_t[0] + 1,) + self._d_y)
-        if self._d_y:
-            prediction = transpose(prediction, (0, 2, 1))
-            taus = (prediction - np.repeat(prediction[:, :, 0], self._d_t[0] + 1).reshape(prediction.shape))[:, :, 1:]
-        else:
-            taus = (prediction - np.repeat(prediction[:, 0], self._d_t[0] + 1).reshape(prediction.shape))[:, 1:]
-        return taus
+        if not self._d_y:
+            return (
+                prediction
+                - np.repeat(prediction[:, 0], self._d_t[0] + 1).reshape(
+                    prediction.shape
+                )
+            )[:, 1:]
+        prediction = transpose(prediction, (0, 2, 1))
+        return (
+            prediction
+            - np.repeat(prediction[:, :, 0], self._d_t[0] + 1).reshape(
+                prediction.shape
+            )
+        )[:, :, 1:]
 
 
 class XLearner(TreatmentExpansionMixin, LinearCateEstimator):
@@ -547,9 +556,7 @@ class DomainAdaptationLearner(TreatmentExpansionMixin, LinearCateEstimator):
             the corresponding singleton dimensions in the output will be collapsed
         """
         X = check_array(X)
-        taus = []
-        for model in self.final_models:
-            taus.append(model.predict(X))
+        taus = [model.predict(X) for model in self.final_models]
         taus = np.column_stack(taus).reshape((-1,) + self._d_t + self._d_y)  # shape as of m*d_t*d_y
         if self._d_y:
             taus = transpose(taus, (0, 2, 1))  # shape as of m*d_y*d_t

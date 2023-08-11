@@ -98,11 +98,7 @@ class TestCausalAnalysis(unittest.TestCase):
                 # local dictionary is flattened to n_rows * d_y * d_t
                 assert len(loc_dict2[_CausalInsightsConstants.RowData]) == 10
 
-                if not classification:
-                    # ExitStack can be used as a "do nothing" ContextManager
-                    cm = ExitStack()
-                else:
-                    cm = self.assertRaises(Exception)
+                cm = ExitStack() if not classification else self.assertRaises(Exception)
                 with cm:
                     inf = ca.whatif(X[:2], np.ones(shape=(2,)), 1, y[:2])
                     assert np.shape(inf.point_estimate) == (2,)
@@ -222,11 +218,7 @@ class TestCausalAnalysis(unittest.TestCase):
 
                         ind_pol = ca.individualized_policy(X, inds[idx])
 
-                    if not classification:
-                        # ExitStack can be used as a "do nothing" ContextManager
-                        cm = ExitStack()
-                    else:
-                        cm = self.assertRaises(Exception)
+                    cm = ExitStack() if not classification else self.assertRaises(Exception)
                     with cm:
                         inf = ca.whatif(X[:2], np.ones(shape=(2,)), inds[1], y[:2])
                         assert np.shape(inf.point_estimate) == np.shape(y[:2])
@@ -317,11 +309,7 @@ class TestCausalAnalysis(unittest.TestCase):
             # local dictionary is flattened to n_rows * d_y * d_t
             assert len(loc_dict2[_CausalInsightsConstants.RowData]) == 10
 
-            if not classification:
-                # ExitStack can be used as a "do nothing" ContextManager
-                cm = ExitStack()
-            else:
-                cm = self.assertRaises(Exception)
+            cm = ExitStack() if not classification else self.assertRaises(Exception)
             with cm:
                 inf = ca.whatif(X[:2], np.ones(shape=(2,)), 1, y[:2])
                 assert np.shape(inf.point_estimate) == (2,)
@@ -450,11 +438,7 @@ class TestCausalAnalysis(unittest.TestCase):
 
                     ind_pol = ca.individualized_policy(X, inds[idx])
 
-                if not classification:
-                    # ExitStack can be used as a "do nothing" ContextManager
-                    cm = ExitStack()
-                else:
-                    cm = self.assertRaises(Exception)
+                cm = ExitStack() if not classification else self.assertRaises(Exception)
                 with cm:
                     inf = ca.whatif(X[:2], np.ones(shape=(2,)), 1, y[:2])
                     inf = ca.whatif(X[:2], np.ones(shape=(2,)), 2, y[:2])

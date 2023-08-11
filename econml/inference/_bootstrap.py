@@ -113,10 +113,7 @@ class BootstrapEstimator:
             if arg is None:
                 return None
             arr = np.asarray(arg)
-            if arr.ndim > 0:
-                return arr[inds]
-            else:  # arg was a scalar, so we shouldn't have converted it
-                return arg
+            return arr[inds] if arr.ndim > 0 else arg
 
         self._instances = Parallel(n_jobs=self._n_jobs, prefer='threads', verbose=self._verbose)(
             delayed(fit)(obj,
@@ -218,15 +215,20 @@ class BootstrapEstimator:
                 raise AttributeError("Unsupported inference: " + name)
 
             d_t = self._wrapped._d_t[0] if self._wrapped._d_t else 1
-            if prefix == 'effect' or (isinstance(self._wrapped, LinearModelFinalCateEstimatorDiscreteMixin) and
-                                      (inf_type == 'coefficient' or inf_type == 'intercept')):
+            if (
+                prefix == 'effect'
+                or isinstance(
+                    self._wrapped, LinearModelFinalCateEstimatorDiscreteMixin
+                )
+                and inf_type in ['coefficient', 'intercept']
+            ):
                 d_t = None
             d_y = self._wrapped._d_y[0] if self._wrapped._d_y else 1
 
             can_call = callable(getattr(self._instances[0], prefix))
 
             kind = self._bootstrap_type
-            if kind == 'percentile' or kind == 'pivot':
+            if kind in ['percentile', 'pivot']:
                 def get_dist(est, arr):
                     if kind == 'percentile':
                         return arr

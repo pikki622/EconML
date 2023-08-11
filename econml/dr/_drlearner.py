@@ -157,9 +157,7 @@ class _ModelFinal:
             X = self._featurizer.transform(X)
         if self._multitask_model_final:
             pred = self.model_cate.predict(X).reshape((-1, self.d_t))
-            if self.d_y:  # need to reintroduce singleton Y dimension
-                return pred[:, np.newaxis, :]
-            return pred
+            return pred[:, np.newaxis, :] if self.d_y else pred
         else:
             preds = np.array([mdl.predict(X).reshape((-1,) + self.d_y) for mdl in self.models_cate])
             return np.moveaxis(preds, 0, -1)  # move treatment dim to end

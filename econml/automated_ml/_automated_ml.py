@@ -16,30 +16,30 @@ to use AutomatedML to automate the process of selecting models for models Y, T,
 and final of their causal inferenve estimator.
 """
 
-LINEAR_MODELS_SET = set([
+LINEAR_MODELS_SET = {
     "ElasticNet",
     "LassoLars",
     "LinearRegressor",
     "FastLinearRegressor",
     "OnlineGradientDescentRegressor",
-    "SGDRegressor"
-])
+    "SGDRegressor",
+}
 
 
-SAMPLE_WEIGHTS_MODELS_SET = set([
-                                "ElasticNet",
-                                "LightGBM",
-                                "GradientBoostingRegressor",
-                                "DecisionTreeRegressor",
-                                "KNeighborsRegressor",
-                                "LassoLars",
-                                "SGDRegressor",
-                                "RandomForestRegressor",
-                                "ExtraTreesRegressor",
-                                "LinearRegressor",
-                                "FastLinearRegressor",
-                                "OnlineGradientDescentRegressor"
-                                ])
+SAMPLE_WEIGHTS_MODELS_SET = {
+    "ElasticNet",
+    "LightGBM",
+    "GradientBoostingRegressor",
+    "DecisionTreeRegressor",
+    "KNeighborsRegressor",
+    "LassoLars",
+    "SGDRegressor",
+    "RandomForestRegressor",
+    "ExtraTreesRegressor",
+    "LinearRegressor",
+    "FastLinearRegressor",
+    "OnlineGradientDescentRegressor",
+}
 
 
 def setAutomatedMLWorkspace(create_workspace=False,
@@ -244,16 +244,16 @@ class _InnerAutomatedMLModel():
         automl_config = copy.deepcopy(self._automl_config)
         current_time = time.localtime()
         current_time_string = time.strftime('%y_%m_%d-%H_%M_%S', current_time)
-        experiment_name = self._experiment_name_prefix + "_" + current_time_string
+        experiment_name = f"{self._experiment_name_prefix}_{current_time_string}"
         self._experiment = Experiment(self._workspace, experiment_name)
         # Configure automl_config with training set information.
         automl_config.user_settings['X'] = X
         automl_config.user_settings['y'] = y
         automl_config.user_settings['sample_weight'] = sample_weight
         # Wait for remote run to complete, the set the model
-        print("Experiment " + experiment_name + " has started.")
+        print(f"Experiment {experiment_name} has started.")
         local_run = self._experiment.submit(automl_config, show_output=self._show_output)
-        print("Experiment " + experiment_name + " completed.")
+        print(f"Experiment {experiment_name} completed.")
         _, self._model = local_run.get_output()
 
     def predict(self, X):
@@ -293,8 +293,7 @@ class AutomatedMLMixin():
                 arg = self._get_automated_ml_model(arg, f"arg{idx}")
             new_args += (arg,)
 
-        for key in kwargs:
-            kwarg = kwargs[key]
+        for key, kwarg in kwargs.items():
             # If item is an automl config, get its corresponding
             # AutomatedML Model and set it for this key in
             # kwargs

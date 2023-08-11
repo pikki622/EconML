@@ -48,7 +48,7 @@ class IdentityFeatures(TransformerMixin):
 
 def parse_final_model_params(coef, intercept, d_y, d_t, d_t_in, bias_part_of_coef, fit_cate_intercept):
     dt = d_t
-    if (d_t_in != d_t) and (d_t and d_t[0] == 1):  # binary treatment or single dim featurized treatment
+    if d_t_in != dt and dt and dt[0] == 1:  # binary treatment or single dim featurized treatment
         dt = ()
     cate_intercept = None
     if bias_part_of_coef:
@@ -410,10 +410,8 @@ def transpose(X, axes=None):
 
     """
     def t(X):
-        if iscoo(X):
-            return X.transpose(axes)
-        else:
-            return np.transpose(X, axes)
+        return X.transpose(axes) if iscoo(X) else np.transpose(X, axes)
+
     return _apply(t, X)
 
 
@@ -564,7 +562,7 @@ def check_input_arrays(*args, validate_len=True, force_all_finite=True, dtype=No
                 if n is None:
                     n = m
                 else:
-                    assert (m == n), "Input arrays have incompatible lengths: {} and {}".format(n, m)
+                    assert (m == n), f"Input arrays have incompatible lengths: {n} and {m}"
             args[i] = new_arg
     return args
 
@@ -689,7 +687,7 @@ def check_models(models, n):
                              "Please provide either a tuple/list of estimators "
                              "with same number of treatments or an unified estimator.")
     elif hasattr(models, 'fit'):
-        models = [clone(models, safe=False) for i in range(n)]
+        models = [clone(models, safe=False) for _ in range(n)]
     else:
         raise ValueError(
             "models must be either a tuple/list of estimators with same number of treatments "
@@ -742,10 +740,7 @@ def reshape_treatmentwise_effects(A, d_t, d_y):
         were vectors, as in the specification of `BaseCateEstimator.marginal_effect`.
     """
     A = reshape(A, (-1,) + d_t + d_y)
-    if d_t and d_y:
-        return transpose(A, (0, 2, 1))  # need to return as m by d_y by d_t matrix
-    else:
-        return A
+    return transpose(A, (0, 2, 1)) if d_t and d_y else A
 
 
 def einsum_sparse(subscripts, *arrs):
@@ -856,7 +851,7 @@ def einsum_sparse(subscripts, *arrs):
     def filter_inds(coords, data, n):
         counts = Counter(inputs[n])
         repeated = [(c, counts[c]) for c in counts if counts[c] > 1]
-        if len(repeated) > 0:
+        if repeated:
             mask = np.full(len(data), True)
             for (k, v) in repeated:
                 inds = [i for i in range(len(inputs[n])) if inputs[n][i] == k]

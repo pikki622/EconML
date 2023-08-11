@@ -538,10 +538,12 @@ class GenericModelFinalInferenceDiscrete(Inference):
                                  "and the baseline treatment!")
         ind = inverse_onehot(T1)
         pred = self.const_marginal_effect_inference(X).point_estimate
-        pred = np.concatenate([np.zeros(pred.shape[0:-1] + (1,)), pred], -1)
+        pred = np.concatenate([np.zeros(pred.shape[:-1] + (1,)), pred], -1)
         pred_stderr = self.const_marginal_effect_inference(X).stderr
         if pred_stderr is not None:
-            pred_stderr = np.concatenate([np.zeros(pred_stderr.shape[0:-1] + (1,)), pred_stderr], -1)
+            pred_stderr = np.concatenate(
+                [np.zeros(pred_stderr.shape[:-1] + (1,)), pred_stderr], -1
+            )
         if X is None:  # Then const_marginal_effect_interval will return a single row
             pred = np.repeat(pred, T0.shape[0], axis=0)
             pred_stderr = np.repeat(pred_stderr, T0.shape[0], axis=0) if pred_stderr is not None else None
@@ -753,9 +755,7 @@ class InferenceResults(metaclass=abc.ABCMeta):
             the corresponding singleton dimensions in the output will be collapsed
             (e.g. if both are vectors, then the output of this method will also be a vector)
         """
-        if self.stderr is not None:
-            return self.stderr**2
-        return None
+        return self.stderr**2 if self.stderr is not None else None
 
     @abc.abstractmethod
     def conf_int(self, alpha=0.05):
@@ -863,10 +863,10 @@ class InferenceResults(metaclass=abc.ABCMeta):
             to_include['ci_lower'] = self._reshape_array(ci_mean[0])
             to_include['ci_upper'] = self._reshape_array(ci_mean[1])
         if output_names is None:
-            output_names = ['Y' + str(i) for i in range(self.d_y)]
+            output_names = [f'Y{str(i)}' for i in range(self.d_y)]
         assert len(output_names) == self.d_y, "Incompatible length of output names"
         if treatment_names is None:
-            treatment_names = ['T' + str(i) for i in range(self._d_t)]
+            treatment_names = [f'T{str(i)}' for i in range(self._d_t)]
         names = ['X', 'Y', 'T']
         if self.d_t:
             assert len(treatment_names) == self._d_t, "Incompatible length of treatment names"
@@ -878,15 +878,14 @@ class InferenceResults(metaclass=abc.ABCMeta):
         res = pd.DataFrame(to_include, index=index).round(decimals)
 
         if self.inf_type == 'coefficient':
-            if feature_names is not None:
-                if self.fname_transformer is not None:
-                    feature_names = self.fname_transformer(feature_names)
-            else:
+            if feature_names is None:
                 feature_names = self.feature_names
+            elif self.fname_transformer is not None:
+                feature_names = self.fname_transformer(feature_names)
             if feature_names is not None:
                 ind = feature_names
             else:
-                ind = ['X' + str(i) for i in range(nx)]
+                ind = [f'X{str(i)}' for i in range(nx)]
             res.index = res.index.set_levels(ind, level="X")
 
         elif self.inf_type == 'intercept':
@@ -1353,8 +1352,7 @@ class PopulationSummaryResults:
             (e.g. if both are vectors, then the output of this method will be a scalar)
         """
         value = self.value if value is None else value
-        zstat = (self.mean_point - value) / self.stderr_mean
-        return zstat
+        return (self.mean_point - value) / self.stderr_mean
 
     def pvalue(self, *, value=None):
         """
@@ -1374,8 +1372,7 @@ class PopulationSummaryResults:
             (e.g. if both are vectors, then the output of this method will be a scalar)
         """
         value = self.value if value is None else value
-        pvalue = norm.sf(np.abs(self.zstat(value=value)), loc=0, scale=1) * 2
-        return pvalue
+        return norm.sf(np.abs(self.zstat(value=value)), loc=0, scale=1) * 2
 
     def conf_int_mean(self, *, alpha=None):
         """
@@ -1539,9 +1536,9 @@ class PopulationSummaryResults:
                               self._format_res(self.conf_int_mean(alpha=alpha)[0], decimals),
                               self._format_res(self.conf_int_mean(alpha=alpha)[1], decimals)))
         if treatment_names is None:
-            treatment_names = ['T' + str(i) for i in range(self._d_t)]
+            treatment_names = [f'T{str(i)}' for i in range(self._d_t)]
         if output_names is None:
-            output_names = ['Y' + str(i) for i in range(self.d_y)]
+            output_names = [f'Y{str(i)}' for i in range(self.d_y)]
 
         myheaders1 = ['mean_point', 'stderr_mean', 'zstat', 'pvalue', 'ci_mean_lower', 'ci_mean_upper']
 
@@ -1611,13 +1608,16 @@ class PopulationSummaryResults:
 
     def _get_stub_names(self, d_y, d_t, treatment_names, output_names):
         if d_y > 1:
-            if d_t > 1:
-                stubs = [oname + "|" + tname for oname in output_names for tname in treatment_names]
-            else:
-                stubs = output_names
+            return (
+                [
+                    oname + "|" + tname
+                    for oname in output_names
+                    for tname in treatment_names
+                ]
+                if d_t > 1
+                else output_names
+            )
+        elif d_t > 1:
+            return treatment_names
         else:
-            if d_t > 1:
-                stubs = treatment_names
-            else:
-                stubs = []
-        return stubs
+            return []

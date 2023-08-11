@@ -137,10 +137,7 @@ def _shap_explain_model_cate(cme_model, models, X, d_t, d_y, featurizer=None, fe
                                                                                                       feature_names,
                                                                                                       input_names,
                                                                                                       featurizer)
-    if featurizer is not None:
-        F = featurizer.transform(X)
-    else:
-        F = X
+    F = featurizer.transform(X) if featurizer is not None else X
     if not isinstance(models, list):
         models = [models]
     assert len(models) == dt, "Number of final stage models don't equals to number of treatments!"
@@ -316,10 +313,7 @@ def _shap_explain_multitask_model_cate(cme_model, multitask_model_cate, X, d_t, 
                                                                                                       feature_names,
                                                                                                       input_names,
                                                                                                       featurizer)
-    if featurizer is not None:
-        F = featurizer.transform(X)
-    else:
-        F = X
+    F = featurizer.transform(X) if featurizer is not None else X
     if dy == 1 and (not isinstance(multitask_model_cate, list)):
         multitask_model_cate = [multitask_model_cate]
 

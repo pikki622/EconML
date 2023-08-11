@@ -182,7 +182,7 @@ def add_vlines(n_periods, n_treatments, hetero_inds):
     locs, labels = plt.xticks([], [])
     locs += [- .501 + (len(hetero_inds) + 1) / 2]
     labels += ["\n\n$\\tau_{{{}}}$".format(0)]
-    locs += [qx for qx in np.arange(len(hetero_inds) + 1)]
+    locs += list(np.arange(len(hetero_inds) + 1))
     labels += ["$1$"] + ["$x_{{{}}}$".format(qx) for qx in hetero_inds]
     for q in np.arange(1, n_treatments):
         plt.axvline(x=q * (len(hetero_inds) + 1) - .5,

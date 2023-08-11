@@ -69,7 +69,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = cate_est.summary(feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             fnames = get_feature_names_or_default(PolynomialFeatures(degree=2,
@@ -86,7 +86,9 @@ class TestInference(unittest.TestCase):
             )
             summary_results = cate_est.summary()
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
-            np.testing.assert_array_equal(coef_rows, ['X' + str(i) for i in range(TestInference.d_x)])
+            np.testing.assert_array_equal(
+                coef_rows, [f'X{str(i)}' for i in range(TestInference.d_x)]
+            )
 
             cate_est = LinearDML(model_t=LinearRegression(), model_y=LinearRegression(), featurizer=None)
             cate_est.fit(
@@ -96,7 +98,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = cate_est.summary(feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             np.testing.assert_array_equal(coef_rows, fnames)
@@ -112,7 +114,9 @@ class TestInference(unittest.TestCase):
             )
             summary_results = wrapped_est.summary()
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
-            np.testing.assert_array_equal(coef_rows, ['X' + str(i) for i in range(TestInference.d_x)])
+            np.testing.assert_array_equal(
+                coef_rows, [f'X{str(i)}' for i in range(TestInference.d_x)]
+            )
 
             cate_est = LinearDML(model_t=LinearRegression(), model_y=LinearRegression(), featurizer=None)
             wrapped_est = self._NoFeatNamesEst(cate_est)
@@ -123,7 +127,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = wrapped_est.summary(feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             np.testing.assert_array_equal(coef_rows, fnames)
@@ -166,7 +170,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = cate_est.summary(T=1, feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             fnames = get_feature_names_or_default(PolynomialFeatures(degree=2,
@@ -184,7 +188,9 @@ class TestInference(unittest.TestCase):
             )
             summary_results = cate_est.summary(T=1)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
-            np.testing.assert_array_equal(coef_rows, ['X' + str(i) for i in range(TestInference.d_x)])
+            np.testing.assert_array_equal(
+                coef_rows, [f'X{str(i)}' for i in range(TestInference.d_x)]
+            )
 
             cate_est = LinearDRLearner(model_regression=LinearRegression(),
                                        model_propensity=LogisticRegression(), featurizer=None)
@@ -195,7 +201,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = cate_est.summary(T=1, feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             np.testing.assert_array_equal(coef_rows, fnames)
@@ -212,7 +218,9 @@ class TestInference(unittest.TestCase):
             )
             summary_results = wrapped_est.summary(T=1)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
-            np.testing.assert_array_equal(coef_rows, ['X' + str(i) for i in range(TestInference.d_x)])
+            np.testing.assert_array_equal(
+                coef_rows, [f'X{str(i)}' for i in range(TestInference.d_x)]
+            )
 
             cate_est = LinearDRLearner(model_regression=LinearRegression(),
                                        model_propensity=LogisticRegression(), featurizer=None)
@@ -224,7 +232,7 @@ class TestInference(unittest.TestCase):
                 W=TestInference.W,
                 inference=inference
             )
-            fnames = ['Q' + str(i) for i in range(TestInference.d_x)]
+            fnames = [f'Q{str(i)}' for i in range(TestInference.d_x)]
             summary_results = wrapped_est.summary(T=1, feature_names=fnames)
             coef_rows = np.asarray(summary_results.tables[0].data)[1:, 0]
             np.testing.assert_array_equal(coef_rows, fnames)

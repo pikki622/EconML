@@ -35,9 +35,7 @@ def new_cov_matrix(cov):
     e_val_new[-4:] = e_val[-4:]
     # replace the negative eigen values
     e_val_new[np.where(e_val_new < 0)] = e_val[np.where(e_val_new < 0)]
-    # generate a new covariance matrix
-    cov_new = e_vec_new.dot(np.diag(e_val_new)).dot(e_vec_new.T)
-    return cov_new
+    return e_vec_new.dot(np.diag(e_val_new)).dot(e_vec_new.T)
 
 # get linear approximation of eigen values
 
@@ -46,8 +44,7 @@ def linear_approximation(start, end, e_val):
     est = LinearRegression()
     X = np.arange(start, end).reshape(-1, 1)
     est.fit(X, e_val[start:end])
-    pred = est.predict(X)
-    return pred
+    return est.predict(X)
 
 
 # coefs
@@ -371,13 +368,13 @@ class SemiSynthetic:
 
     def create_instance(self):
         # get new covariance matrix
-        self.cov_new = joblib.load(os.path.join(dir, f"input_dynamicdgp/cov_new.jbl"))
+        self.cov_new = joblib.load(os.path.join(dir, "input_dynamicdgp/cov_new.jbl"))
 
         # get coefs
         self.index = ["proxy1", "proxy2", "proxy3", "proxy4",
                       "investment1", "investment2", "investment3", ]
         self.columns = [f"{ind}_{i}" for ind in self.index for i in range(-6, 0)] +\
-            [f"demo_{i}" for i in range(47)]
+                [f"demo_{i}" for i in range(47)]
 
         self.coef_df = generate_coefs(self.index, self.columns)
         self.n_proxies = 4
@@ -399,11 +396,10 @@ class SemiSynthetic:
 
         # make fixed residuals
         all_residuals = []
-        for t in range(n_periods):
-            sample_residuals = []
-            for i in range(7):
-                sample_residuals.append(
-                    random_state.choice(residual_matrix[:, i], n))
+        for _ in range(n_periods):
+            sample_residuals = [
+                random_state.choice(residual_matrix[:, i], n) for i in range(7)
+            ]
             sample_residuals = np.array(sample_residuals).T
             all_residuals.append(sample_residuals)
         all_residuals = np.array(all_residuals)
@@ -433,7 +429,7 @@ class SemiSynthetic:
 
         new_index = ["proxy1", "proxy2", "proxy3", "proxy4"]
         new_columns = [f"{ind}_{i}" for ind in new_index for i in range(-6, 0)] +\
-            [f"demo_{i}" for i in range(47)]
+                [f"demo_{i}" for i in range(47)]
         panelX = fn_df_control[new_columns].values.reshape(-1, n_periods, len(new_columns))
         panelT = fn_df_control[self.index[n_proxies:]
                                ].values.reshape(-1, n_periods, n_treatments)

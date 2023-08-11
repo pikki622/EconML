@@ -137,11 +137,10 @@ class TestCateInterpreter(unittest.TestCase):
             elif self.coinflip():
                 if discrete_t:
                     policy_intrp_kwargs.update(sample_treatment_costs=np.random.normal(size=(10, 2)))
+                elif self.coinflip():
+                    policy_intrp_kwargs.update(sample_treatment_costs=np.random.normal(size=(10, 1)))
                 else:
-                    if self.coinflip():
-                        policy_intrp_kwargs.update(sample_treatment_costs=np.random.normal(size=(10, 1)))
-                    else:
-                        policy_intrp_kwargs.update(sample_treatment_costs=np.random.normal(size=(10,)))
+                    policy_intrp_kwargs.update(sample_treatment_costs=np.random.normal(size=(10,)))
 
             if self.coinflip():
                 common_kwargs.update(feature_names=['A', 'B', 'C', 'D'])
@@ -179,21 +178,21 @@ class TestCateInterpreter(unittest.TestCase):
                 render_kwargs.update(view=False)
 
             with self.subTest(t_shape=t_shape,
-                              y_shape=y_shape,
-                              discrete_t=discrete_t,
-                              fit_kwargs=fit_kwargs,
-                              cate_init_kwargs=cate_init_kwargs,
-                              policy_init_kwargs=policy_init_kwargs,
-                              policy_intrp_kwargs=policy_intrp_kwargs,
-                              intrp_kwargs=intrp_kwargs,
-                              common_kwargs=common_kwargs,
-                              plot_kwargs=plot_kwargs,
-                              render_kwargs=render_kwargs,
-                              export_kwargs=export_kwargs):
-                plot_kwargs.update(common_kwargs)
-                render_kwargs.update(common_kwargs)
-                export_kwargs.update(common_kwargs)
-                policy_intrp_kwargs.update(intrp_kwargs)
+                                      y_shape=y_shape,
+                                      discrete_t=discrete_t,
+                                      fit_kwargs=fit_kwargs,
+                                      cate_init_kwargs=cate_init_kwargs,
+                                      policy_init_kwargs=policy_init_kwargs,
+                                      policy_intrp_kwargs=policy_intrp_kwargs,
+                                      intrp_kwargs=intrp_kwargs,
+                                      common_kwargs=common_kwargs,
+                                      plot_kwargs=plot_kwargs,
+                                      render_kwargs=render_kwargs,
+                                      export_kwargs=export_kwargs):
+                plot_kwargs |= common_kwargs
+                render_kwargs |= common_kwargs
+                export_kwargs |= common_kwargs
+                policy_intrp_kwargs |= intrp_kwargs
 
                 est.fit(Y, T, X=X, **fit_kwargs)
 
@@ -210,4 +209,4 @@ class TestCateInterpreter(unittest.TestCase):
                     intrp.render('outfile', **render_kwargs)
                     intrp.export_graphviz(**export_kwargs)
                 except AttributeError as e:
-                    assert str(e).find("samples should") >= 0
+                    assert "samples should" in str(e)

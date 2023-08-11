@@ -245,8 +245,7 @@ class PolicyForest(BaseEnsemble, metaclass=ABCMeta):
             delayed(tree.decision_path)(X, check_input=False)
             for tree in self.estimators_)
 
-        n_nodes = [0]
-        n_nodes.extend([i.shape[1] for i in indicators])
+        n_nodes = [0, *[i.shape[1] for i in indicators]]
         n_nodes_ptr = np.array(n_nodes).cumsum()
 
         return sparse_hstack(indicators).tocsr(), n_nodes_ptr
@@ -339,9 +338,12 @@ class PolicyForest(BaseEnsemble, metaclass=ABCMeta):
                 # would have got if we hadn't used a warm_start.
                 random_state.randint(MAX_INT, size=len(self.estimators_))
 
-            trees = [self._make_estimator(append=False,
-                                          random_state=random_state).init()
-                     for i in range(n_more_estimators)]
+            trees = [
+                self._make_estimator(
+                    append=False, random_state=random_state
+                ).init()
+                for _ in range(n_more_estimators)
+            ]
 
             if self.warm_start:
                 # Advancing subsample_random_state. Assumes each prior fit call has the same number of

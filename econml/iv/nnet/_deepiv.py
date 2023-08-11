@@ -29,9 +29,8 @@ except ImportError as exn:
 def _zero_grad(e, vs):
     if K.backend() == 'cntk':
         return K.stop_gradient(e)
-    else:
-        z = 0 * K.sum(K.concatenate([K.batch_flatten(v) for v in vs]))
-        return K.stop_gradient(e) + z
+    z = 0 * K.sum(K.concatenate([K.batch_flatten(v) for v in vs]))
+    return K.stop_gradient(e) + z
 
 
 def mog_model(n_components, d_x, d_t):
@@ -213,10 +212,8 @@ def response_loss_model(h, p, d_z, d_x, d_y, samples=1, use_upper_bound=False, g
     # sample: (() -> Layer, int) -> Layer
     def sample(f, n):
         assert n > 0
-        if n == 1:
-            return f()
-        else:
-            return L.average([f() for _ in range(n)])
+        return f() if n == 1 else L.average([f() for _ in range(n)])
+
     z, x, y = [L.Input((d,)) for d in [d_z, d_x, d_y]]
     if gradient_samples:
         # we want to separately sample the gradient; we use stop_gradient to treat the sampled model as constant

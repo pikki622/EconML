@@ -32,10 +32,9 @@ def _split_weighted_sample(self, X, y, sample_weight, is_stratified=False):
 
     if sample_weight is None:
         return kfold_model.split(X, y)
-    else:
-        random_state = self.random_state
-        kfold_model.shuffle = True
-        kfold_model.random_state = random_state
+    random_state = self.random_state
+    kfold_model.shuffle = True
+    kfold_model.random_state = random_state
 
     weights_sum = np.sum(sample_weight)
     max_deviations = []
@@ -74,12 +73,11 @@ def _split_weighted_sample(self, X, y, sample_weight, is_stratified=False):
     if np.all(weight_fracs > .95 / self.n_splits):
         # Found a good split, return.
         return self._get_folds_from_splits(stratified_weight_splits, X.shape[0])
-    else:
-        # Did not find a good split
-        # Record the devaiation for the weight-stratified split to compare with KFold splits
-        all_splits.append(stratified_weight_splits)
-        max_deviation = np.max(np.abs(weight_fracs - 1 / self.n_splits))
-        max_deviations.append(max_deviation)
+    # Did not find a good split
+    # Record the devaiation for the weight-stratified split to compare with KFold splits
+    all_splits.append(stratified_weight_splits)
+    max_deviation = np.max(np.abs(weight_fracs - 1 / self.n_splits))
+    max_deviations.append(max_deviation)
     # Return most weight-balanced partition
     min_deviation_index = np.argmin(max_deviations)
     return self._get_folds_from_splits(all_splits[min_deviation_index], X.shape[0])
@@ -159,11 +157,14 @@ class WeightedKFold:
         return self.n_splits
 
     def _get_folds_from_splits(self, splits, sample_size):
-        folds = []
         sample_indices = np.arange(sample_size)
-        for it in range(self.n_splits):
-            folds.append([np.setdiff1d(sample_indices, splits[it], assume_unique=True), splits[it]])
-        return folds
+        return [
+            [
+                np.setdiff1d(sample_indices, splits[it], assume_unique=True),
+                splits[it],
+            ]
+            for it in range(self.n_splits)
+        ]
 
     def _get_splits_from_weight_stratification(self, sample_weight):
         # Weight stratification algorithm

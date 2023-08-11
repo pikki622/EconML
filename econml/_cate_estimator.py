@@ -35,8 +35,9 @@ class BaseCateEstimator(metaclass=abc.ABCMeta):
             if inference in options:
                 inference = options[inference]()
             else:
-                raise ValueError("Inference option '%s' not recognized; valid values are %s" %
-                                 (inference, [*options]))
+                raise ValueError(
+                    f"Inference option '{inference}' not recognized; valid values are {[*options]}"
+                )
         # since inference objects can be stateful, we must copy it before fitting;
         # otherwise this sequence wouldn't work:
         #   est1.fit(..., inference=inf)
@@ -324,7 +325,7 @@ class BaseCateEstimator(metaclass=abc.ABCMeta):
         if self._inference is not None:
             return getattr(self._inference, name)(*args, **kwargs)
         else:
-            raise AttributeError("Can't call '%s' because 'inference' is None" % name)
+            raise AttributeError(f"Can't call '{name}' because 'inference' is None")
 
     def _defer_to_inference(m):
         @wraps(m)
@@ -638,43 +639,39 @@ class LinearCateEstimator(BaseCateEstimator):
         if X is None:
             eff = np.repeat(eff, shape(T)[0], axis=0)
 
-        if self._original_treatment_featurizer:
-            feat_T = self.transformer.transform(T)
-            jac_T = self.transformer.jac(T)
-
-            einsum_str = 'myf, mtf->myt'
-
-            if ndim(T) == 1:
-                einsum_str = einsum_str.replace('t', '')
-            if ndim(feat_T) == 1:
-                einsum_str = einsum_str.replace('f', '')
-            if (ndim(eff) == ndim(feat_T)):
-                einsum_str = einsum_str.replace('y', '')
-            return np.einsum(einsum_str, eff, jac_T)
-
-        else:
+        if not self._original_treatment_featurizer:
             return eff
+        feat_T = self.transformer.transform(T)
+        jac_T = self.transformer.jac(T)
+
+        einsum_str = 'myf, mtf->myt'
+
+        if ndim(T) == 1:
+            einsum_str = einsum_str.replace('t', '')
+        if ndim(feat_T) == 1:
+            einsum_str = einsum_str.replace('f', '')
+        if (ndim(eff) == ndim(feat_T)):
+            einsum_str = einsum_str.replace('y', '')
+        return np.einsum(einsum_str, eff, jac_T)
 
     def marginal_effect_interval(self, T, X=None, *, alpha=0.05):
         if self._original_treatment_featurizer:
             return self._use_inference_method('marginal_effect_interval', T, X, alpha=alpha)
-        else:
-            X, T = self._expand_treatments(X, T)
-            effs = self.const_marginal_effect_interval(X=X, alpha=alpha)
-            if X is None:  # need to repeat by the number of rows of T to ensure the right shape
-                effs = tuple(np.repeat(eff, shape(T)[0], axis=0) for eff in effs)
-            return effs
+        X, T = self._expand_treatments(X, T)
+        effs = self.const_marginal_effect_interval(X=X, alpha=alpha)
+        if X is None:  # need to repeat by the number of rows of T to ensure the right shape
+            effs = tuple(np.repeat(eff, shape(T)[0], axis=0) for eff in effs)
+        return effs
     marginal_effect_interval.__doc__ = BaseCateEstimator.marginal_effect_interval.__doc__
 
     def marginal_effect_inference(self, T, X=None):
         if self._original_treatment_featurizer:
             return self._use_inference_method('marginal_effect_inference', T, X)
-        else:
-            X, T = self._expand_treatments(X, T)
-            cme_inf = self.const_marginal_effect_inference(X=X)
-            if X is None:
-                cme_inf = cme_inf._expand_outputs(shape(T)[0])
-            return cme_inf
+        X, T = self._expand_treatments(X, T)
+        cme_inf = self.const_marginal_effect_inference(X=X)
+        if X is None:
+            cme_inf = cme_inf._expand_outputs(shape(T)[0])
+        return cme_inf
     marginal_effect_inference.__doc__ = BaseCateEstimator.marginal_effect_inference.__doc__
 
     @BaseCateEstimator._defer_to_inference
@@ -1081,18 +1078,27 @@ class LinearModelFinalCateEstimatorMixin(BaseCateEstimator):
         extra_txt = ["<sub>A linear parametric conditional average treatment effect (CATE) model was fitted:"]
 
         if self._original_treatment_featurizer:
-            extra_txt.append("$Y = \\Theta(X)\\cdot \\psi(T) + g(X, W) + \\epsilon$")
-            extra_txt.append("where $\\psi(T)$ is the output of the `treatment_featurizer")
-            extra_txt.append(
-                "and for every outcome $i$ and featurized treatment $j$ the CATE $\\Theta_{ij}(X)$ has the form:")
+            extra_txt.extend(
+                (
+                    "$Y = \\Theta(X)\\cdot \\psi(T) + g(X, W) + \\epsilon$",
+                    "where $\\psi(T)$ is the output of the `treatment_featurizer",
+                    "and for every outcome $i$ and featurized treatment $j$ the CATE $\\Theta_{ij}(X)$ has the form:",
+                )
+            )
         else:
-            extra_txt.append("$Y = \\Theta(X)\\cdot T + g(X, W) + \\epsilon$")
-            extra_txt.append(
-                "where for every outcome $i$ and treatment $j$ the CATE $\\Theta_{ij}(X)$ has the form:")
-
+            extra_txt.extend(
+                (
+                    "$Y = \\Theta(X)\\cdot T + g(X, W) + \\epsilon$",
+                    "where for every outcome $i$ and treatment $j$ the CATE $\\Theta_{ij}(X)$ has the form:",
+                )
+            )
         if self.featurizer:
-            extra_txt.append("$\\Theta_{ij}(X) = \\phi(X)' coef_{ij} + cate\\_intercept_{ij}$")
-            extra_txt.append("where $\\phi(X)$ is the output of the `featurizer`")
+            extra_txt.extend(
+                (
+                    "$\\Theta_{ij}(X) = \\phi(X)' coef_{ij} + cate\\_intercept_{ij}$",
+                    "where $\\phi(X)$ is the output of the `featurizer`",
+                )
+            )
         else:
             extra_txt.append("$\\Theta_{ij}(X) = X' coef_{ij} + cate\\_intercept_{ij}$")
 
@@ -1120,7 +1126,7 @@ class LinearModelFinalCateEstimatorMixin(BaseCateEstimator):
             coef_title = 'Coefficient Results'
             smry.add_table(coef_array, coef_headers, coef_stubs, coef_title)
         except Exception as e:
-            print("Coefficient Results: ", str(e))
+            print("Coefficient Results: ", e)
         try:
             intercept_table = self.intercept__inference().summary_frame(alpha=alpha,
                                                                         value=value, decimals=decimals,
@@ -1137,7 +1143,7 @@ class LinearModelFinalCateEstimatorMixin(BaseCateEstimator):
             intercept_title = 'CATE Intercept Results'
             smry.add_table(intercept_array, intercept_headers, intercept_stubs, intercept_title)
         except Exception as e:
-            print("CATE Intercept Results: ", str(e))
+            print("CATE Intercept Results: ", e)
         if len(smry.tables) > 0:
             return smry
 

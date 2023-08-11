@@ -130,7 +130,7 @@ class TestDRLearner(unittest.TestCase):
 
                             for inf in infs:
                                 with self.subTest(d_w=d_w, d_x=d_x, d_y=d_y, d_t=d_t,
-                                                  is_discrete=is_discrete, est=est, inf=inf):
+                                                                              is_discrete=is_discrete, est=est, inf=inf):
                                     est.fit(Y, T, X=X, W=W, inference=inf)
 
                                     # ensure that we can serialize fit estimator
@@ -146,7 +146,9 @@ class TestDRLearner(unittest.TestCase):
                                         shape(const_marg_eff), const_marginal_effect_shape)
 
                                     np.testing.assert_array_equal(
-                                        marg_eff if d_x else marg_eff[0:1], const_marg_eff)
+                                        marg_eff if d_x else marg_eff[:1],
+                                        const_marg_eff,
+                                    )
 
                                     T0 = np.full_like(T, 'a')
                                     eff = est.effect(X, T0=T0, T1=T)
@@ -255,10 +257,7 @@ class TestDRLearner(unittest.TestCase):
 
                                     # make sure we can call effect with implied scalar treatments, no matter the
                                     # dimensions of T, and also that we warn when there are multiple treatments
-                                    if d_t > 1:
-                                        cm = self.assertWarns(Warning)
-                                    else:
-                                        cm = ExitStack()  # ExitStack can be used as a "do nothing" ContextManager
+                                    cm = self.assertWarns(Warning) if d_t > 1 else ExitStack()
                                     with cm:
                                         effect_shape2 = (
                                             n if d_x else 1,) + ((d_y,) if d_y > 0 else ())
@@ -540,9 +539,9 @@ class TestDRLearner(unittest.TestCase):
                                                                             'auto')
                                                                            ]:
                                 with self.subTest(X=X, W=W, sample_weight=sample_weight, freq_weight=freq_weight,
-                                                  sample_var=sample_var,
-                                                  featurizer=featurizer, model_y=model_y, model_t=model_t,
-                                                  est_class=est_class, inference=inference):
+                                                                              sample_var=sample_var,
+                                                                              featurizer=featurizer, model_y=model_y, model_t=model_t,
+                                                                              est_class=est_class, inference=inference):
                                     if (X is None) and (est_class == SparseLinearDRLearner):
                                         continue
                                     if (X is None) and (est_class == ForestDRLearner):
@@ -588,8 +587,6 @@ class TestDRLearner(unittest.TestCase):
                                             X[:3])
                                         truth = np.hstack(
                                             [1 + .5 * X[:3, [0]], 2 * (1 + .5 * X[:3, [0]])])
-                                        TestDRLearner._check_with_interval(
-                                            truth, point, lower, upper)
                                     else:
                                         lower, upper = est.effect_interval(
                                             T0=0, T1=1)
@@ -600,9 +597,8 @@ class TestDRLearner(unittest.TestCase):
                                         lower, upper = est.const_marginal_effect_interval()
                                         point = est.const_marginal_effect()
                                         truth = np.array([[1, 2]])
-                                        TestDRLearner._check_with_interval(
-                                            truth, point, lower, upper)
-
+                                    TestDRLearner._check_with_interval(
+                                        truth, point, lower, upper)
                                     for t in [1, 2]:
                                         if X is not None:
                                             lower, upper = est.marginal_effect_interval(
@@ -611,23 +607,18 @@ class TestDRLearner(unittest.TestCase):
                                                 t, X[:3])
                                             truth = np.hstack(
                                                 [1 + .5 * X[:3, [0]], 2 * (1 + .5 * X[:3, [0]])])
-                                            TestDRLearner._check_with_interval(
-                                                truth, point, lower, upper)
                                         else:
                                             lower, upper = est.marginal_effect_interval(
                                                 t)
                                             point = est.marginal_effect(t)
                                             truth = np.array([[1, 2]])
-                                            TestDRLearner._check_with_interval(
-                                                truth, point, lower, upper)
+                                        TestDRLearner._check_with_interval(
+                                            truth, point, lower, upper)
                                     assert isinstance(est.score_, float)
                                     assert isinstance(
                                         est.score(y, T, X=X, W=W), float)
 
-                                    if X is not None:
-                                        feature_names = ['A', 'B']
-                                    else:
-                                        feature_names = []
+                                    feature_names = ['A', 'B'] if X is not None else []
                                     out_feat_names = feature_names
                                     if X is not None:
                                         if (featurizer is not None):
@@ -661,7 +652,10 @@ class TestDRLearner(unittest.TestCase):
                                                                       [2, 3, len(feature_names) +
                                                                        (W.shape[1] if W is not None else 0)])
 
-                                    if isinstance(est, LinearDRLearner) or isinstance(est, SparseLinearDRLearner):
+                                    if isinstance(
+                                        est,
+                                        (LinearDRLearner, SparseLinearDRLearner),
+                                    ):
                                         if X is not None:
                                             for t in [1, 2]:
                                                 true_coef = np.zeros(

@@ -43,9 +43,11 @@ def test_dominicks():
     # Make brand numeric
     oj_data["brand"] = [brands.index(b) for b in oj_data["brand"]]
 
+
+
     class PriceFeaturizer(TransformerMixin):
         def __init__(self, n_prods, own_price=True,
-                     cross_price_groups=False, cross_price_indiv=True, per_product_effects=True):
+                             cross_price_groups=False, cross_price_indiv=True, per_product_effects=True):
             base_arrays = []
             effect_names = []
             one_hots = [(0,) * p + (1,) + (0,) * (n_prods - p - 1) for p in range(n_prods)]
@@ -58,10 +60,13 @@ def test_dominicks():
             if cross_price_indiv:
                 for p in range(n_prods):
                     base_arrays.append(one_hots[p] * np.ones((n_prods, 1)) - np.diag(one_hots[p]))
-                    effect_names.append("cross price effect {} ->".format(p))
+                    effect_names.append(f"cross price effect {p} ->")
             if per_product_effects:
-                all = [(np.diag(one_hots[p]) @ arr, nm + " {}".format(p))
-                       for arr, nm in zip(base_arrays, effect_names) for p in range(n_prods)]
+                all = [
+                    (np.diag(one_hots[p]) @ arr, nm + f" {p}")
+                    for arr, nm in zip(base_arrays, effect_names)
+                    for p in range(n_prods)
+                ]
                 # remove meaningless features (e.g. cross-price effects of products on themselves),
                 # which have all zero coeffs
                 nonempty = [(arr, nm) for arr, nm in all if np.count_nonzero(arr) > 0]
@@ -84,6 +89,7 @@ def test_dominicks():
         @property
         def names(self):
             return self._names
+
 
     for name, op, xp_g, xp_i, pp in [("Homogeneous treatment effect", True, False, False, False),
                                      ("Heterogeneous treatment effects", True, False, False, True),
@@ -112,9 +118,9 @@ def test_dominicks():
             effects.append(dml.coef_)
         effects = np.array(effects)
         for nm, eff in zip(names, effects.T):
-            print(" Effect: {}".format(nm))
-            print("   Mean: {}".format(np.mean(eff)))
-            print("   Std.: {}".format(np.std(eff)))
+            print(f" Effect: {nm}")
+            print(f"   Mean: {np.mean(eff)}")
+            print(f"   Std.: {np.std(eff)}")
 
     class ConstFt(TransformerMixin):
         def fit(self, X):
@@ -139,8 +145,8 @@ def test_dominicks():
                 W=reshape(data.as_matrix(featnames), (-1, 3 * len(featnames))))
         effects.append(dml.coef_)
     effects = np.array(effects)
-    names = ["{} on {}".format(i, j) for j in range(3) for i in range(3)]
+    names = [f"{i} on {j}" for j in range(3) for i in range(3)]
     for nm, eff in zip(names, reshape(effects, (-1, 9)).T):
-        print(" Effect: {}".format(nm))
-        print("   Mean: {}".format(np.mean(eff)))
-        print("   Std.: {}".format(np.std(eff)))
+        print(f" Effect: {nm}")
+        print(f"   Mean: {np.mean(eff)}")
+        print(f"   Std.: {np.std(eff)}")

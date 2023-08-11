@@ -71,27 +71,24 @@ class _BaseDRIVModelNuisance:
             T_proj = self._model_t_xwz.predict(X, WZ).reshape(T.shape)
             # if discrete, return shape (n,1); if continuous return shape (n,)
             target = (T * T_proj).reshape(T.shape[0],)
-            self._model_tz_xw.fit(X=X, W=W, Target=target,
-                                  sample_weight=sample_weight, groups=groups)
         else:
             self._model_z_xw.fit(X=X, W=W, Target=Z, sample_weight=sample_weight, groups=groups)
-            if self._discrete_treatment:
-                if self._discrete_instrument:
-                    # target will be discrete and will be inversed from FirstStageWrapper, shape (n,1)
-                    target = T * Z
-                else:
-                    # shape (n,)
-                    target = inverse_onehot(T) * Z
+            if (
+                self._discrete_treatment
+                and self._discrete_instrument
+                or not self._discrete_treatment
+                and not self._discrete_instrument
+            ):
+                # target will be discrete and will be inversed from FirstStageWrapper, shape (n,1)
+                target = T * Z
+            elif self._discrete_treatment:
+                # shape (n,)
+                target = inverse_onehot(T) * Z
             else:
-                if self._discrete_instrument:
-                    # shape (n,)
-                    target = T * inverse_onehot(Z)
-                else:
-                    # shape(n,)
-                    target = T * Z
-            self._model_tz_xw.fit(X=X, W=W, Target=target,
-                                  sample_weight=sample_weight, groups=groups)
-
+                # shape (n,)
+                target = T * inverse_onehot(Z)
+        self._model_tz_xw.fit(X=X, W=W, Target=target,
+                              sample_weight=sample_weight, groups=groups)
         # TODO: prel_model_effect could allow sample_var and freq_weight?
         if self._discrete_instrument:
             Z = inverse_onehot(Z)
@@ -148,17 +145,18 @@ class _BaseDRIVModelNuisance:
                 z_xw_score = None
 
             if hasattr(self._model_tz_xw, 'score'):
-                if self._discrete_treatment:
-                    if self._discrete_instrument:
-                        # target will be discrete and will be inversed from FirstStageWrapper
-                        target = T * Z
-                    else:
-                        target = inverse_onehot(T) * Z
+                if (
+                    self._discrete_treatment
+                    and self._discrete_instrument
+                    or not self._discrete_treatment
+                    and not self._discrete_instrument
+                ):
+                    # target will be discrete and will be inversed from FirstStageWrapper
+                    target = T * Z
+                elif self._discrete_treatment:
+                    target = inverse_onehot(T) * Z
                 else:
-                    if self._discrete_instrument:
-                        target = T * inverse_onehot(Z)
-                    else:
-                        target = T * Z
+                    target = T * inverse_onehot(Z)
                 tz_xw_score = self._model_tz_xw.score(X=X, W=W, Target=target, sample_weight=sample_weight)
             else:
                 tz_xw_score = None
@@ -247,16 +245,18 @@ class _BaseDRIVModelFinal:
         return prel_theta + (res_y - prel_theta * res_t) * res_z / clipped_cov, clipped_cov, res_z
 
     def _transform_X(self, X, n=1, fitting=True):
-        if X is not None:
-            if self._featurizer is not None:
-                F = self._featurizer.fit_transform(X) if fitting else self._featurizer.transform(X)
-            else:
-                F = X
-        else:
+        if X is None:
             if not self._fit_cate_intercept:
                 raise AttributeError("Cannot have X=None and also not allow for a CATE intercept!")
-            F = np.ones((n, 1))
-        return F
+            return np.ones((n, 1))
+        elif self._featurizer is not None:
+            return (
+                self._featurizer.fit_transform(X)
+                if fitting
+                else self._featurizer.transform(X)
+            )
+        else:
+            return X
 
     def fit(self, Y, T, X=None, W=None, Z=None, nuisances=None,
             sample_weight=None, freq_weight=None, sample_var=None, groups=None):
@@ -346,9 +346,7 @@ class _BaseDRIV(_OrthoLearner):
         if len(T1.shape) > 1 and T1.shape[1] > 1:
             if self.discrete_treatment:
                 raise AttributeError("DRIV only supports binary treatments")
-            elif self.treatment_featurizer:  # defer possible failure to downstream logic
-                pass
-            else:
+            elif not self.treatment_featurizer:
                 raise AttributeError("DRIV only supports single-dimensional continuous treatments")
         if len(Z1.shape) > 1 and Z1.shape[1] > 1:
             if self.discrete_instrument:
@@ -2333,9 +2331,7 @@ class _DummyCATE:
         return self
 
     def effect(self, X):
-        if X is None:
-            return np.zeros(1)
-        return np.zeros(X.shape[0])
+        return np.zeros(1) if X is None else np.zeros(X.shape[0])
 
 
 class IntentToTreatDRIV(_IntentToTreatDRIV):

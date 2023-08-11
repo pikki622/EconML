@@ -174,10 +174,7 @@ def _first_stage_clf(X, y, *, make_regressor=False, automl=True, min_count=None,
         model = LogisticRegressionCV(
             cv=min(5, min_count), max_iter=1000, Cs=cs, random_state=random_state).fit(X, y)
         est = LogisticRegression(C=model.C_[0], max_iter=1000, random_state=random_state)
-    if make_regressor:
-        return _RegressionWrapper(est)
-    else:
-        return est
+    return _RegressionWrapper(est) if make_regressor else est
 
 
 def _final_stage(*, random_state=None, verbose=0):
@@ -686,7 +683,7 @@ class CausalAnalysis:
 
         heterogeneity_inds = self.heterogeneity_inds
         if heterogeneity_inds is None:
-            heterogeneity_inds = [None for ind in train_inds]
+            heterogeneity_inds = [None for _ in train_inds]
 
         # if heterogeneity_inds is 1D, repeat it
         if heterogeneity_inds == [] or isinstance(heterogeneity_inds[0], (int, str, bool)):
@@ -940,10 +937,8 @@ class CausalAnalysis:
 
             def attr(o):
                 val = getattr(o, s)
-                if callable(val):
-                    return val()
-                else:
-                    return val
+                return val() if callable(val) else val
+
         return attr
 
     # Create a summary combining all results into a single output; this is used
@@ -1383,7 +1378,10 @@ class CausalAnalysis:
             for k in _get_data_causal_insights_keys():
                 del res[k]
 
-            row_data.update([(key, self._make_accessor(attr)(inf).flatten()) for key, attr in props])
+            row_data |= [
+                (key, self._make_accessor(attr)(inf).flatten())
+                for key, attr in props
+            ]
 
             # get the length of the list corresponding to the first dictionary key
             # `list(row_data)` gets the keys as a list, since `row_data.keys()` can't be indexed into
@@ -1698,7 +1696,10 @@ class CausalAnalysis:
             zeros = np.zeros((est.shape[0], 1))
             all_effs = np.hstack([zeros, est])
             eff_ind = np.argmax(all_effs, axis=1)
-            treatment_arr = np.array([result.feature_baseline] + [lvl for lvl in result.feature_levels], dtype=object)
+            treatment_arr = np.array(
+                [result.feature_baseline] + list(result.feature_levels),
+                dtype=object,
+            )
             rec = treatment_arr[eff_ind]
             # we need to call effect_inference to get the correct CI between the two treatment options
             effect = result.estimator.effect_inference(Xtest, T0=orig_df['Current treatment'], T1=rec)
@@ -1793,7 +1794,7 @@ class CausalAnalysis:
             The treatment value considered 'typical' for this feature
         """
         result = [res for res in self._results if res.feature_index == feature_index]
-        if len(result) == 0:
+        if not result:
             if self._has_column_names:
                 result = [res for res in self._results if res.feature_name == feature_index]
                 assert len(result) == 1, f"Could not find feature with index/name {feature_index}"

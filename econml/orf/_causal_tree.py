@@ -133,7 +133,7 @@ random_state : int, RandomState instance, or None, default None
         # node list stores the nodes that are yet to be splitted
         node_list = [(self.tree, 0)]
 
-        while len(node_list) > 0:
+        while node_list:
             node, depth = node_list.pop()
 
             # If by splitting we have too small leaves or if we reached the maximum number of splits we stop
@@ -260,7 +260,7 @@ random_state : int, RandomState instance, or None, default None
     def print_tree_rec(self, node):
         if not node:
             return
-        print("Node: ({}, {})".format(node.feature, node.threshold))
+        print(f"Node: ({node.feature}, {node.threshold})")
         print("Left Child")
         self.print_tree_rec(node.left)
         print("Right Child")

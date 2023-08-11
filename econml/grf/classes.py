@@ -734,7 +734,7 @@ class CausalIVForest(BaseGRF):
         if Z.ndim == 1:
             Z = np.reshape(Z, (-1, 1))
 
-        if not Z.shape[1] == T.shape[1]:
+        if Z.shape[1] != T.shape[1]:
             raise ValueError("The dimension of the instrument should match the dimension of the treatment. "
                              "This method handles only exactly identified instrumental variable regression. "
                              "Preprocess your instrument by projecting it to the treatment space.")

@@ -47,15 +47,20 @@ class TestPandasIntegration(unittest.TestCase):
         cls.cat_treat_labels = ["None", "One", "Two"]
         cls.outcome_multi = ["Y0_df", "Y1_df"]
         cls.cont_treat_multi = ["T0_df", "T1_df"]
-        # Generate data
-        d = {}
-        d.update({w: np.random.normal(size=cls.n) for w in cls.controls})
-        d.update({x: np.random.normal(size=cls.n) for x in cls.features})
-        d.update({t: np.random.uniform(size=cls.n) for t in cls.cont_treat_multi})
-        d.update({t: np.random.binomial(1, 0.5, size=cls.n) for t in cls.bin_treat})
-        d.update({t: np.random.choice(["None", "One", "Two"], size=cls.n, p=[0.4, 0.3, 0.3]) for t in cls.cat_treat})
-        d.update({z: np.random.binomial(1, 0.5, size=cls.n) for z in cls.instrument})
-        d.update({y: np.random.normal(size=cls.n) for y in cls.outcome_multi})
+        d = (
+            {w: np.random.normal(size=cls.n) for w in cls.controls}
+            | {x: np.random.normal(size=cls.n) for x in cls.features}
+            | {t: np.random.uniform(size=cls.n) for t in cls.cont_treat_multi}
+            | {t: np.random.binomial(1, 0.5, size=cls.n) for t in cls.bin_treat}
+            | {
+                t: np.random.choice(
+                    ["None", "One", "Two"], size=cls.n, p=[0.4, 0.3, 0.3]
+                )
+                for t in cls.cat_treat
+            }
+            | {z: np.random.binomial(1, 0.5, size=cls.n) for z in cls.instrument}
+            | {y: np.random.normal(size=cls.n) for y in cls.outcome_multi}
+        )
         cls.df = pd.DataFrame(d)
 
     def test_dml(self):
@@ -89,7 +94,7 @@ class TestPandasIntegration(unittest.TestCase):
 
         # |--> Test re-fit
         est.featurizer = None
-        X1 = X.rename(columns={c: "{}_1".format(c) for c in X.columns})
+        X1 = X.rename(columns={c: f"{c}_1" for c in X.columns})
         est.fit(Y, T, X=X1, W=W, inference='statsmodels')
         self._check_input_names(est.summary(), feat_comp=X1.columns)
         # Test SparseLinearDML
@@ -270,24 +275,32 @@ class TestPandasIntegration(unittest.TestCase):
             if T_multi:
                 treat_comp = TestPandasIntegration.cont_treat_multi
             if T_cat:
-                treat_comp = ["{}_{}".format(TestPandasIntegration.cat_treat[0], label)
-                              for label in TestPandasIntegration.cat_treat_labels[1:]]
+                treat_comp = [
+                    f"{TestPandasIntegration.cat_treat[0]}_{label}"
+                    for label in TestPandasIntegration.cat_treat_labels[1:]
+                ]
 
         if Y_multi:
             out_comp = TestPandasIntegration.outcome_multi
-            if T_cat or T_multi:
-                index_name_comp = [
-                    f"{feat}|{outcome}|{treat}" for feat in feat_comp for outcome in out_comp for treat in treat_comp]
-
-            else:
-                index_name_comp = [
-                    f"{feat}|{outcome}" for feat in feat_comp for outcome in out_comp]
+            index_name_comp = (
+                [
+                    f"{feat}|{outcome}|{treat}"
+                    for feat in feat_comp
+                    for outcome in out_comp
+                    for treat in treat_comp
+                ]
+                if T_cat or T_multi
+                else [
+                    f"{feat}|{outcome}"
+                    for feat in feat_comp
+                    for outcome in out_comp
+                ]
+            )
+        elif T_cat or T_multi:
+            index_name_comp = [
+                f"{feat}|{treat}" for feat in feat_comp for treat in treat_comp]
         else:
-            if T_cat or T_multi:
-                index_name_comp = [
-                    f"{feat}|{treat}" for feat in feat_comp for treat in treat_comp]
-            else:
-                index_name_comp = feat_comp
+            index_name_comp = feat_comp
         np.testing.assert_array_equal(index_name, index_name_comp)
 
     def _check_popsum_names(self, popsum, Y_multi=False):

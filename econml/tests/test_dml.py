@@ -78,8 +78,7 @@ class TestDML(unittest.TestCase):
                                                                      (False, d_y),
                                                                      (is_discrete, d_t)]]
 
-                                for featurizer, fit_cate_intercept in\
-                                    [(None, True),
+                                for featurizer, fit_cate_intercept in [(None, True),
                                      (PolynomialFeatures(degree=2, include_bias=False), True),
                                      (PolynomialFeatures(degree=2, include_bias=True), False)]:
 
@@ -105,7 +104,7 @@ class TestDML(unittest.TestCase):
                                         (d_t_final if d_t_final > 0 else 1), 6)
 
                                     fd_x = featurizer.fit_transform(X).shape[1:] if featurizer and d_x\
-                                        else ((d_x,) if d_x else (0,))
+                                            else ((d_x,) if d_x else (0,))
                                     coef_shape = Y.shape[1:] + (T.shape[1:] if not is_discrete else (2,)) + fd_x
 
                                     coef_summaryframe_shape = (
@@ -119,8 +118,7 @@ class TestDML(unittest.TestCase):
 
                                     all_infs = [None, 'auto', BootstrapInference(2)]
 
-                                    for est, multi, infs in\
-                                        [(DML(model_y=Lasso(),
+                                    for est, multi, infs in [(DML(model_y=Lasso(),
                                               model_t=model_t,
                                               model_final=Lasso(alpha=0.1, fit_intercept=False),
                                               featurizer=featurizer,
@@ -183,7 +181,7 @@ class TestDML(unittest.TestCase):
 
                                         for inf in infs:
                                             with self.subTest(d_w=d_w, d_x=d_x, d_y=d_y, d_t=d_t,
-                                                              is_discrete=is_discrete, est=est, inf=inf):
+                                                                                                      is_discrete=is_discrete, est=est, inf=inf):
 
                                                 if X is None and (not fit_cate_intercept):
                                                     with pytest.raises(AttributeError):
@@ -201,8 +199,7 @@ class TestDML(unittest.TestCase):
                                                 self.assertEqual(shape(marg_eff), marginal_effect_shape)
                                                 self.assertEqual(shape(const_marg_eff), const_marginal_effect_shape)
 
-                                                np.testing.assert_allclose(
-                                                    marg_eff if d_x else marg_eff[0:1], const_marg_eff)
+                                                np.testing.assert_allclose(marg_eff if d_x else marg_eff[:1], const_marg_eff)
 
                                                 assert isinstance(est.score_, float)
                                                 for score_list in est.nuisance_scores_y:
@@ -320,11 +317,7 @@ class TestDML(unittest.TestCase):
                                                                 est.coef__inference().conf_int()
                                                                 [0], est.coef__interval()[0], decimal=5)
 
-                                                        if fit_cate_intercept:
-                                                            cm = ExitStack()
-                                                            # ExitStack can be used as a "do nothing" ContextManager
-                                                        else:
-                                                            cm = pytest.raises(AttributeError)
+                                                        cm = ExitStack() if fit_cate_intercept else pytest.raises(AttributeError)
                                                         with cm:
                                                             self.assertEqual(shape(est.intercept__inference().
                                                                                    summary_frame()),
@@ -344,11 +337,7 @@ class TestDML(unittest.TestCase):
                                                 # make sure we can call effect with implied scalar treatments,
                                                 # no matter the dimensions of T, and also that we warn when there
                                                 # are multiple treatments
-                                                if d_t > 1:
-                                                    cm = self.assertWarns(Warning)
-                                                else:
-                                                    # ExitStack can be used as a "do nothing" ContextManager
-                                                    cm = ExitStack()
+                                                cm = self.assertWarns(Warning) if d_t > 1 else ExitStack()
                                                 with cm:
                                                     effect_shape2 = (n if d_x else 1,) + ((d_y,) if d_y > 0 else ())
                                                     eff = est.effect(X) if not is_discrete else est.effect(
@@ -423,7 +412,7 @@ class TestDML(unittest.TestCase):
 
                                 for inf in infs:
                                     with self.subTest(d_w=d_w, d_x=d_x, d_y=d_y, d_t=d_t,
-                                                      is_discrete=is_discrete, est=est, inf=inf):
+                                                                                      is_discrete=is_discrete, est=est, inf=inf):
                                         if X is None:
                                             with pytest.raises(AttributeError):
                                                 est.fit(Y, T, X=X, W=W, inference=inf)
@@ -437,7 +426,9 @@ class TestDML(unittest.TestCase):
                                         self.assertEqual(shape(const_marg_eff), const_marginal_effect_shape)
 
                                         np.testing.assert_array_equal(
-                                            marg_eff if d_x else marg_eff[0:1], const_marg_eff)
+                                            marg_eff if d_x else marg_eff[:1],
+                                            const_marg_eff,
+                                        )
 
                                         T0 = np.full_like(T, 'a') if is_discrete else np.zeros_like(T)
                                         eff = est.effect(X, T0=T0, T1=T)
@@ -520,10 +511,7 @@ class TestDML(unittest.TestCase):
 
                                         # make sure we can call effect with implied scalar treatments, no matter the
                                         # dimensions of T, and also that we warn when there are multiple treatments
-                                        if d_t > 1:
-                                            cm = self.assertWarns(Warning)
-                                        else:
-                                            cm = ExitStack()  # ExitStack can be used as a "do nothing" ContextManager
+                                        cm = self.assertWarns(Warning) if d_t > 1 else ExitStack()
                                         with cm:
                                             effect_shape2 = (n if d_x else 1,) + ((d_y,) if d_y > 0 else ())
                                             eff = est.effect(X) if not is_discrete else est.effect(X, T0='a', T1='b')

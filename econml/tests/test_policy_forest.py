@@ -118,12 +118,13 @@ class TestPolicyForest(unittest.TestCase):
 
     def _test_policy_honesty(self, trainer, dr=False):
         n_outcome_list = [1, 2] if not dr else [2]
+        random_state = 123
         for criterion in ['neg_welfare']:
             for min_impurity_decrease in [0.0, 0.07]:
                 for sample_weight in [None, 'rand']:
                     for n_outcomes in n_outcome_list:
                         config = self._get_base_config()
-                        config['honest'] = True if not dr else False
+                        config['honest'] = not dr
                         config['criterion'] = criterion
                         config['max_depth'] = 2
                         config['min_samples_leaf'] = 5
@@ -132,7 +133,6 @@ class TestPolicyForest(unittest.TestCase):
                         config['n_estimators'] = 4
                         config['max_samples'] = .4 if not dr else 1.0
                         config['n_jobs'] = 1
-                        random_state = 123
                         if sample_weight is not None:
                             sample_weight = check_random_state(random_state).randint(0, 4, size=n)
                         X, y, truth = self._get_policy_data(n, n_features, random_state, n_outcomes)
@@ -188,7 +188,7 @@ class TestPolicyForest(unittest.TestCase):
         inds, counts = np.unique(subinds, return_counts=True)
         np.testing.assert_allclose(counts / n_estimators, .7, atol=.06)
         counts = np.zeros(n)
-        for it, tree in enumerate(forest):
+        for tree in forest:
             samples_train, samples_val = tree.get_train_test_split_inds()
             np.testing.assert_equal(samples_train, samples_val)
         config = self._get_base_config()
@@ -219,6 +219,7 @@ class TestPolicyForest(unittest.TestCase):
         return
 
     def test_feature_importances(self,):
+        random_state = 123
         # test that the estimator calcualtes var correctly
         for trainer in [self._train_policy_forest]:
             for criterion in ['neg_welfare']:
@@ -234,13 +235,12 @@ class TestPolicyForest(unittest.TestCase):
                     config['n_jobs'] = 1
 
                     n, n_features = 800, 2
-                    random_state = 123
                     if sample_weight is not None:
                         sample_weight = check_random_state(random_state).randint(0, 4, size=n)
                     X, y, _ = self._get_policy_data(n, n_features, random_state)
                     forest = trainer(X, y, config, sample_weight=sample_weight)
                     forest_het_importances = np.zeros(n_features)
-                    for it, tree in enumerate(forest):
+                    for tree in forest:
                         tree_ = tree.tree_
                         tfeature = tree_.feature
                         timpurity = tree_.impurity
@@ -252,8 +252,7 @@ class TestPolicyForest(unittest.TestCase):
 
                         for max_depth in [0, 2]:
                             feature_importances = np.zeros(n_features)
-                            for it, (feat, impurity, depth, left, right, w) in\
-                                    enumerate(zip(tfeature, timpurity, tdepth, tleft, tright, tw)):
+                            for feat, impurity, depth, left, right, w in zip(tfeature, timpurity, tdepth, tleft, tright, tw):
                                 if (left != -1) and (depth <= max_depth):
                                     gain = w * impurity - tw[left] * timpurity[left] - tw[right] * timpurity[right]
                                     feature_importances[feat] += gain / (depth + 1)**2.0
@@ -263,8 +262,7 @@ class TestPolicyForest(unittest.TestCase):
                             np.testing.assert_array_equal(feature_importances, totest)
 
                             het_importances = np.zeros(n_features)
-                            for it, (feat, depth, left, right, w) in\
-                                    enumerate(zip(tfeature, tdepth, tleft, tright, tw)):
+                            for feat, depth, left, right, w in zip(tfeature, tdepth, tleft, tright, tw):
                                 if (left != -1) and (depth <= max_depth):
                                     gain = tw[left] * tw[right] * np.mean((tvalue[left] - tvalue[right])**2) / w
                                     het_importances[feat] += gain / (depth + 1)**2.0

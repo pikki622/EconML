@@ -34,25 +34,16 @@ class TestDRIV(unittest.TestCase):
         y = np.random.normal(size=(n,))
 
         # parameter combinations to test
-        for d_w, d_x, binary_T, binary_Z, projection, featurizer\
-            in itertools.product(
+        for d_w, d_x, binary_T, binary_Z, projection, featurizer in itertools.product(
                 [None, 10],     # d_w
                 [None, 3],      # d_x
                 [True, False],  # binary_T
                 [True, False],  # binary_Z
                 [True, False],  # projection
-                [None, PolynomialFeatures(degree=2, include_bias=False), ]):    # featurizer
+                [None, PolynomialFeatures(degree=2, include_bias=False), ]):# featurizer
 
-            if d_w is None:
-                W = None
-            else:
-                W = np.random.normal(size=(n, d_w))
-
-            if d_x is None:
-                X = None
-            else:
-                X = np.random.normal(size=(n, d_x))
-
+            W = None if d_w is None else np.random.normal(size=(n, d_w))
+            X = None if d_x is None else np.random.normal(size=(n, d_x))
             if binary_T:
                 T = np.random.choice(["a", "b"], size=(n,))
             else:

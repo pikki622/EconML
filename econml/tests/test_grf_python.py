@@ -220,6 +220,7 @@ class TestGRFPython(unittest.TestCase):
 
     def _test_causal_tree_internals(self, trainer):
         config = self._get_base_config()
+        random_state = 123
         for criterion in ['het', 'mse']:
             for fit_intercept in [False, True]:
                 for min_var_fraction_leaf in [None, .4]:
@@ -229,7 +230,6 @@ class TestGRFPython(unittest.TestCase):
                     config['min_samples_leaf'] = 5
                     config['min_var_fraction_leaf'] = min_var_fraction_leaf
                     n, n_features, n_treatments = 100, 2, 2
-                    random_state = 123
                     X, T, y, truth, truth_full = self._get_causal_data(n, n_features, n_treatments, random_state)
                     forest = trainer(X, T, y, config)
                     tree = forest[0].tree_
@@ -245,6 +245,7 @@ class TestGRFPython(unittest.TestCase):
                         np.testing.assert_allclose(tree.predict_full(X[mask]), truth_full[mask], atol=.05)
 
     def _test_causal_honesty(self, trainer):
+        random_state = 123
         for criterion in ['het', 'mse']:
             for fit_intercept in [False, True]:
                 for min_var_fraction_leaf, min_var_leaf_on_val in [(None, False), (.4, False), (.4, True)]:
@@ -268,7 +269,6 @@ class TestGRFPython(unittest.TestCase):
                                     config['max_samples'] = .4
                                     config['n_jobs'] = 1
                                     n = 800
-                                random_state = 123
                                 if sample_weight is not None:
                                     sample_weight = check_random_state(random_state).randint(0, 4, size=n)
                                 X, T, y, truth, truth_full = self._get_causal_data(n, n_features,
@@ -375,7 +375,7 @@ class TestGRFPython(unittest.TestCase):
         inds, counts = np.unique(subinds, return_counts=True)
         np.testing.assert_allclose(counts / n_estimators, config['max_samples'], atol=.06)
         counts = np.zeros(n)
-        for it, tree in enumerate(forest):
+        for tree in forest:
             samples_train, samples_val = tree.get_train_test_split_inds()
             np.testing.assert_equal(samples_train, samples_val)
         config = self._get_base_config()
@@ -444,17 +444,17 @@ class TestGRFPython(unittest.TestCase):
         np.testing.assert_allclose(ub, ubtest)
         np.testing.assert_allclose(np.sqrt(var[:, 0, 0]), forest.prediction_stderr(X)[:, 0])
 
+        random_state = 123
         # test accuracy
         for n in [10, 100, 1000, 10000]:
-            random_state = 123
             X, y, truth = self._get_regression_data(n, n_features, random_state)
             forest = RegressionForest(**config).fit(X, y)
             our_mean, our_var = forest.predict_and_var(X[:1])
             true_mean, true_var = np.mean(y), np.var(y) / y.shape[0]
             np.testing.assert_allclose(our_mean, true_mean, atol=0.05)
             np.testing.assert_allclose(our_var, true_var, atol=0.05, rtol=.1)
+        random_state = 123
         for n, our_thr, true_thr in [(1000, .5, .25), (10000, .05, .05)]:
-            random_state = 123
             config['max_depth'] = 1
             X, y, truth = self._get_step_regression_data(n, n_features, random_state)
             forest = RegressionForest(**config).fit(X, y)
@@ -505,6 +505,7 @@ class TestGRFPython(unittest.TestCase):
         return
 
     def test_feature_importances(self,):
+        random_state = 123
         # test that the estimator calcualtes var correctly
         for trainer in [self._train_causal_forest, self._train_iv_forest]:
             for criterion in ['het', 'mse']:
@@ -524,14 +525,13 @@ class TestGRFPython(unittest.TestCase):
                     config['n_jobs'] = 1
 
                     n, n_features, n_treatments = 800, 2, 2
-                    random_state = 123
                     if sample_weight is not None:
                         sample_weight = check_random_state(random_state).randint(0, 4, size=n)
                     X, T, y, truth, truth_full = self._get_causal_data(n, n_features,
                                                                        n_treatments, random_state)
                     forest = trainer(X, T, y, config, sample_weight=sample_weight)
                     forest_het_importances = np.zeros(n_features)
-                    for it, tree in enumerate(forest):
+                    for tree in forest:
                         tree_ = tree.tree_
                         tfeature = tree_.feature
                         timpurity = tree_.impurity
@@ -543,8 +543,7 @@ class TestGRFPython(unittest.TestCase):
 
                         for max_depth in [0, 2]:
                             feature_importances = np.zeros(n_features)
-                            for it, (feat, impurity, depth, left, right, w) in\
-                                    enumerate(zip(tfeature, timpurity, tdepth, tleft, tright, tw)):
+                            for feat, impurity, depth, left, right, w in zip(tfeature, timpurity, tdepth, tleft, tright, tw):
                                 if (left != -1) and (depth <= max_depth):
                                     gain = w * impurity - tw[left] * timpurity[left] - tw[right] * timpurity[right]
                                     feature_importances[feat] += gain / (depth + 1)**2.0
@@ -554,8 +553,7 @@ class TestGRFPython(unittest.TestCase):
                             np.testing.assert_array_equal(feature_importances, totest)
 
                             het_importances = np.zeros(n_features)
-                            for it, (feat, depth, left, right, w) in\
-                                    enumerate(zip(tfeature, tdepth, tleft, tright, tw)):
+                            for feat, depth, left, right, w in zip(tfeature, tdepth, tleft, tright, tw):
                                 if (left != -1) and (depth <= max_depth):
                                     gain = tw[left] * tw[right] * np.mean((tvalue[left] - tvalue[right])**2) / w
                                     het_importances[feat] += gain / (depth + 1)**2.0

@@ -173,7 +173,10 @@ def _crossfit(model, folds, *args, **kwargs):
             nuisance_temp = (nuisance_temp,)
 
         if idx == 0:
-            nuisances = tuple([np.full((args[0].shape[0],) + nuis.shape[1:], np.nan) for nuis in nuisance_temp])
+            nuisances = tuple(
+                np.full((args[0].shape[0],) + nuis.shape[1:], np.nan)
+                for nuis in nuisance_temp
+            )
 
         for it, nuis in enumerate(nuisance_temp):
             nuisances[it][test_idxs] = nuis
@@ -531,10 +534,7 @@ class _OrthoLearner(TreatmentExpansionMixin, LinearCateEstimator):
         if self.discrete_treatment:
             enc = LabelEncoder()
             T = enc.fit_transform(np.ravel(T))
-            if self.discrete_instrument:
-                return T + Z * len(enc.classes_)
-            else:
-                return T
+            return T + Z * len(enc.classes_) if self.discrete_instrument else T
         elif self.discrete_instrument:
             return Z
         else:
@@ -602,8 +602,10 @@ class _OrthoLearner(TreatmentExpansionMixin, LinearCateEstimator):
         self._random_state = check_random_state(self.random_state)
         assert (freq_weight is None) == (
             sample_var is None), "Sample variances and frequency weights must be provided together!"
-        assert not (self.discrete_treatment and self.treatment_featurizer), "Treatment featurization " \
+        assert not self.discrete_treatment or not self.treatment_featurizer, (
+            "Treatment featurization "
             "is not supported when treatment is discrete"
+        )
         if check_input:
             Y, T, X, W, Z, sample_weight, freq_weight, sample_var, groups = check_input_arrays(
                 Y, T, X, W, Z, sample_weight, freq_weight, sample_var, groups)
@@ -635,16 +637,12 @@ class _OrthoLearner(TreatmentExpansionMixin, LinearCateEstimator):
             all_nuisances = []
             fitted_inds = None
             if sample_weight is None:
-                if freq_weight is not None:
-                    sample_weight_nuisances = freq_weight
-                else:
-                    sample_weight_nuisances = None
-            else:
-                if freq_weight is not None:
-                    sample_weight_nuisances = freq_weight * sample_weight
-                else:
-                    sample_weight_nuisances = sample_weight
+                sample_weight_nuisances = freq_weight if freq_weight is not None else None
+            elif freq_weight is None:
+                sample_weight_nuisances = sample_weight
 
+            else:
+                sample_weight_nuisances = freq_weight * sample_weight
             self._models_nuisance = []
             for idx in range(self.mc_iters or 1):
                 nuisances, fitted_models, new_inds, scores = self._fit_nuisances(
@@ -663,21 +661,24 @@ class _OrthoLearner(TreatmentExpansionMixin, LinearCateEstimator):
                 elif not np.array_equal(fitted_inds, new_inds):
                     raise AttributeError("Different indices were fit by different folds, so they cannot be aggregated")
 
-            if self.mc_iters is not None:
-                if self.mc_agg == 'mean':
+            if self.mc_agg == 'mean':
+                if self.mc_iters is not None:
                     nuisances = tuple(np.mean(nuisance_mc_variants, axis=0)
                                       for nuisance_mc_variants in zip(*all_nuisances))
-                elif self.mc_agg == 'median':
+            elif self.mc_agg == 'median':
+                if self.mc_iters is not None:
                     nuisances = tuple(np.median(nuisance_mc_variants, axis=0)
                                       for nuisance_mc_variants in zip(*all_nuisances))
-                else:
-                    raise ValueError(
-                        "Parameter `mc_agg` must be one of {'mean', 'median'}. Got {}".format(self.mc_agg))
+            elif self.mc_iters is not None:
+                raise ValueError(
+                    "Parameter `mc_agg` must be one of {'mean', 'median'}. Got {}".format(self.mc_agg))
 
             Y, T, X, W, Z, sample_weight, freq_weight, sample_var = (self._subinds_check_none(arr, fitted_inds)
                                                                      for arr in (Y, T, X, W, Z, sample_weight,
                                                                                  freq_weight, sample_var))
-            nuisances = tuple([self._subinds_check_none(nuis, fitted_inds) for nuis in nuisances])
+            nuisances = tuple(
+                self._subinds_check_none(nuis, fitted_inds) for nuis in nuisances
+            )
             self._cached_values = CachedValues(nuisances=nuisances,
                                                Y=Y, T=T, X=X, W=W, Z=Z,
                                                sample_weight=sample_weight,
@@ -782,14 +783,14 @@ class _OrthoLearner(TreatmentExpansionMixin, LinearCateEstimator):
             all_vars = [var if np.ndim(var) == 2 else var.reshape(-1, 1) for var in [Z, W, X] if var is not None]
             to_split = np.hstack(all_vars) if all_vars else np.ones((T.shape[0], 1))
 
-            if groups is not None:
-                if isinstance(splitter, (KFold, StratifiedKFold)):
-                    raise TypeError("Groups were passed to fit while using a KFold or StratifiedKFold splitter. "
-                                    "Instead you must initialize this object with a splitter that can handle groups.")
-                folds = splitter.split(to_split, strata, groups=groups)
-            else:
+            if groups is None:
                 folds = splitter.split(to_split, strata)
 
+            elif isinstance(splitter, (KFold, StratifiedKFold)):
+                raise TypeError("Groups were passed to fit while using a KFold or StratifiedKFold splitter. "
+                                "Instead you must initialize this object with a splitter that can handle groups.")
+            else:
+                folds = splitter.split(to_split, strata, groups=groups)
         nuisances, fitted_models, fitted_inds, scores = _crossfit(self._ortho_learner_model_nuisance, folds,
                                                                   Y, T, X=X, W=W, Z=Z,
                                                                   sample_weight=sample_weight, groups=groups)
